@@ -18,6 +18,7 @@ use App\Model\helpdesk\Utility\MailboxProtocol;
 use Crypt;
 use Exception;
 use Lang;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 
 /**
  * ======================================
@@ -82,7 +83,7 @@ class EmailsController extends Controller
             $mailbox_protocols = $mailbox_protocol->get();
 
             $service = new \App\Model\MailJob\MailService();
-            $services = $service->lists('name', 'id')->toArray();
+            $services = $service->pluck('name', 'id')->toArray();
 
             // return with all the table data
             return view('themes.default1.admin.helpdesk.emails.emails.create', compact('mailbox_protocols', 'priority', 'departments', 'helps', 'services'));
@@ -103,7 +104,7 @@ class EmailsController extends Controller
     {
         //dd($request->all());
         try {
-            $service_request = $request->except('sending_status', '_token', 'email_address', 'email_name', 'password', 'department', 'priority', 'help_topic', 'fetching_protocol', 'fetching_host', 'fetching_port', 'fetching_encryption', 'imap_authentication', 'sending_protocol', 'sending_host', 'sending_port', 'sending_encryption', 'smtp_authentication', 'internal_notes', '_wysihtml5_mode', 'code');
+            $service_request = $request->except('sending_status', '_token', 'email_address', 'email_name', 'user_name', 'password', 'department', 'priority', 'help_topic', 'fetching_protocol', 'fetching_host', 'fetching_port', 'fetching_encryption', 'imap_authentication', 'sending_protocol', 'sending_host', 'sending_port', 'sending_encryption', 'smtp_authentication', 'internal_notes', '_wysihtml5_mode', 'code');
             $service = $request->input('sending_protocol');
             $validate = '/novalidate-cert';
             $fetch = 1;
@@ -124,6 +125,7 @@ class EmailsController extends Controller
 
             return $this->validateEmailError($send, $fetch);
         } catch (Exception $ex) {
+            dd($ex->getMessage());
             $message = $ex->getMessage();
             if ($request->input('fetching_status') && imap_last_error()) {
                 $message = imap_last_error();
@@ -174,6 +176,7 @@ class EmailsController extends Controller
         $email->email_address = $request->email_address;
 
         $email->email_name = $request->email_name;
+        $email->user_name = $request->user_name;
         $email->fetching_host = $request->fetching_host;
         $email->fetching_port = $request->fetching_port;
         $email->fetching_protocol = $request->fetching_protocol;
@@ -241,21 +244,21 @@ class EmailsController extends Controller
     {
         $mailservice_id = $request->input('sending_protocol');
         $driver = $this->getDriver($mailservice_id);
-        $username = $request->input('email_address');
+        $address = $request->input('email_address');
+        $username = $request->input('user_name');
         $password = $request->input('password');
         $name = $request->input('email_name');
         $host = $request->input('sending_host');
         $port = $request->input('sending_port');
         $enc = $request->input('sending_encryption');
-        $service_request = $request->except('sending_status', '_token', 'email_address', 'email_name', 'password', 'department', 'priority', 'help_topic', 'fetching_protocol', 'fetching_host', 'fetching_port', 'fetching_encryption', 'imap_authentication', 'sending_protocol', 'sending_host', 'sending_port', 'sending_encryption', 'smtp_authentication', 'internal_notes', '_wysihtml5_mode');
+        $service_request = $request->except('sending_status', '_token', 'email_address', 'email_name', 'user_name', 'password', 'department', 'priority', 'help_topic', 'fetching_protocol', 'fetching_host', 'fetching_port', 'fetching_encryption', 'imap_authentication', 'sending_protocol', 'sending_host', 'sending_port', 'sending_encryption', 'smtp_authentication', 'internal_notes', '_wysihtml5_mode');
 
         $this->emailService($driver, $service_request);
-        $this->setMailConfig($driver, $username, $name, $password, $enc, $host, $port);
-        $transport = \Swift_SmtpTransport::newInstance($host, $port, $enc);
+        $this->setMailConfig($driver, $address, $name, $username, $password, $enc, $host, $port);
+        $transport = new EsmtpTransport($host, $port);
         $transport->setUsername($username);
         $transport->setPassword($password);
-        $mailer = \Swift_Mailer::newInstance($transport);
-        $mailer->getTransport()->start();
+        $transport->start();
 
         return 1;
     }
@@ -264,30 +267,31 @@ class EmailsController extends Controller
     {
         $mailservice_id = $request->input('sending_protocol');
         $driver = $this->getDriver($mailservice_id);
-        $username = $request->input('email_address');
+        $address = $request->input('email_address');
+        $username = $request->input('user_name');
         $password = $request->input('password');
         $name = $request->input('email_name');
         $host = $request->input('sending_host');
         $port = $request->input('sending_port');
         $enc = $request->input('sending_encryption');
-        $service_request = $request->except('sending_status', '_token', 'email_address', 'email_name', 'password', 'department', 'priority', 'help_topic', 'fetching_protocol', 'fetching_host', 'fetching_port', 'fetching_encryption', 'imap_authentication', 'sending_protocol', 'sending_host', 'sending_port', 'sending_encryption', 'smtp_authentication', 'internal_notes', '_wysihtml5_mode');
+        $service_request = $request->except('sending_status', '_token', 'email_address', 'email_name', 'user_name', 'password', 'department', 'priority', 'help_topic', 'fetching_protocol', 'fetching_host', 'fetching_port', 'fetching_encryption', 'imap_authentication', 'sending_protocol', 'sending_host', 'sending_port', 'sending_encryption', 'smtp_authentication', 'internal_notes', '_wysihtml5_mode');
 
         $this->emailService($driver, $service_request);
-        $this->setMailConfig($driver, $username, $name, $password, $enc, $host, $port);
+        $this->setMailConfig($driver, $address, $name, $username, $password, $enc, $host, $port);
         $controller = new \App\Http\Controllers\Common\PhpMailController();
         $subject = 'test';
         $data = 'test';
         //dd(\Config::get('mail'),\Config::get('services'));
-        $send = $controller->laravelMail($username, $name, $subject, $data, [], []);
+        $send = $controller->laravelMail($address, $name, $subject, $data, [], []);
 
         return $send;
     }
 
-    public function setMailConfig($driver, $username, $name, $password, $enc, $host, $port)
+    public function setMailConfig($driver, $address, $name, $username, $password, $enc, $host, $port)
     {
         $configs = [
             'username'   => $username,
-            'from'       => ['address' => $username, 'name' => $name],
+            'from'       => ['address' => $address, 'name' => $name],
             'password'   => $password,
             'encryption' => $enc,
             'host'       => $host,
@@ -348,7 +352,7 @@ class EmailsController extends Controller
             $mailbox_protocols = $mailbox_protocol->get();
 
             $service = new \App\Model\MailJob\MailService();
-            $services = $service->lists('name', 'id')->toArray();
+            $services = $service->pluck('name', 'id')->toArray();
 
             // return if the execution is succeeded
             return view('themes.default1.admin.helpdesk.emails.emails.edit', compact('mailbox_protocols', 'priority', 'departments', 'helps', 'emails', 'sys_email', 'services'))->with('count', $count);
@@ -384,7 +388,7 @@ class EmailsController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param type                   $id
+     * @param type $id
      * @param type Emails            $email
      * @param type EmailsEditRequest $request
      *
@@ -428,6 +432,7 @@ class EmailsController extends Controller
                 return redirect('emails')->with('fails', Lang::get('lang.you_cannot_delete_system_default_email'));
             }
         }
+
         try {
             // fetching the database instance of the current email
             $emails = $email->whereId($id)->first();
@@ -459,6 +464,9 @@ class EmailsController extends Controller
         $password = $request->input('password');
         $server = new Fetch($host, $port, $service);
         //$server->setFlag('novalidate-cert');
+        if ($request->filled('user_name')) {
+            $username = $request->input('user_name');
+        }
         if ($encryption != '') {
             $server->setFlag($encryption);
         }
@@ -509,7 +517,7 @@ class EmailsController extends Controller
             $mail->isSMTP();
             $mail->Host = $request->input('sending_host');            // Specify main and backup SMTP servers
             //$mail->SMTPAuth = true;                                   // Enable SMTP authentication
-            $mail->Username = $request->input('email_address');       // SMTP username
+            $mail->Username = $request->input('user_name');       // SMTP username
             $mail->Password = $request->input('password');            // SMTP password
             $mail->SMTPSecure = $request->input('sending_encryption'); // Enable TLS encryption, `ssl` also accepted
             $mail->Port = $request->input('sending_port');            // TCP port to connect to

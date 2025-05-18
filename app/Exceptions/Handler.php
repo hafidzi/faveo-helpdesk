@@ -2,16 +2,16 @@
 
 namespace App\Exceptions;
 
-// controller
-use Bugsnag;
-//use Illuminate\Validation\ValidationException;
-use Bugsnag\BugsnagLaravel\BugsnagExceptionHandler as ExceptionHandler;
+use Bugsnag\BugsnagLaravel\Facades\Bugsnag;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
-// use Symfony\Component\HttpKernel\Exception\HttpException;
-// use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Validation\ValidationException;
+use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class Handler extends ExceptionHandler
@@ -22,57 +22,67 @@ class Handler extends ExceptionHandler
      * @var array
      */
     protected $dontReport = [
-//        'Symfony\Component\HttpKernel\Exception\HttpException',
-        \Illuminate\Http\Exception\HttpResponseException::class,
-        ValidationException::class,
+        HttpResponseException::class,
         AuthorizationException::class,
-        HttpResponseException ::class,
+        HttpResponseException::class,
         ModelNotFoundException::class,
         \Symfony\Component\HttpKernel\Exception\HttpException::class,
+        ValidationException::class,
+        \DaveJamesMiller\Breadcrumbs\BreadcrumbsException::class,
     ];
 
     /**
-     * Report or log an exception.
+     * @param \Throwable $e
      *
-     * This is a great spot to send exceptions to Sentry, Bugsnag, etc.
-     *
-     * @param \Exception $e
+     * @throws \Throwable
      *
      * @return void
      */
-    public function report(Exception $e)
+    public function report(\Throwable $e)
     {
-        $debug = \Config::get('app.bugsnag_reporting');
-        $debug = ($debug) ? 'true' : 'false';
-        if ($debug == 'false') {
-            Bugsnag::setBeforeNotifyFunction(function ($error) {
-                return false;
-            });
-        } else {
-            $version = \Config::get('app.version');
-            Bugsnag::setAppVersion($version);
-        }
+        $this->reportToBugsNag($e);
 
         return parent::report($e);
     }
 
     /**
-     * Render an exception into an HTTP response.
+     * Convert a validation exception into a JSON response.
      *
-     * @param type      $request
-     * @param Exception $e
+     * @param \Illuminate\Http\Request                   $request
+     * @param \Illuminate\Validation\ValidationException $exception
      *
-     * @return type mixed
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function render($request, Exception $e)
+    protected function invalidJson($request, ValidationException $exception)
+    {
+        return response()->json(['success' => false, 'errors' => $exception->errors()], $exception->status);
+    }
+
+    /**
+     * @param            $request
+     * @param \Throwable $e
+     *
+     * @throws \Throwable
+     *
+     * @return type|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|\Illuminate\Http\Response|\Symfony\Component\HttpFoundation\Response
+     */
+    public function render($request, \Throwable $e)
     {
         switch ($e) {
-            case $e instanceof \Illuminate\Http\Exception\HttpResponseException:
+            case $e instanceof HttpResponseException:
                 return parent::render($request, $e);
             case $e instanceof \Tymon\JWTAuth\Exceptions\TokenExpiredException:
                 return response()->json(['message' => $e->getMessage(), 'code' => $e->getStatusCode()]);
             case $e instanceof \Tymon\JWTAuth\Exceptions\TokenInvalidException:
                 return response()->json(['message' => $e->getMessage(), 'code' => $e->getStatusCode()]);
+            case $e instanceof TokenMismatchException:
+                if ($request->ajax() || $request->wantsJson()) {
+                    $result = ['fails' => \Lang::get('lang.session-expired')];
+
+                    return response()->json(compact('result'), 402);
+                }
+
+                return redirect()->back()->with('fails', \Lang::get('lang.session-expired'));
             default:
                 return $this->common($request, $e);
         }
@@ -88,13 +98,23 @@ class Handler extends ExceptionHandler
      */
     public function render500($request, $e)
     {
+        $seg = $request->segments();
+        if (in_array('api', $seg)) {
+            if ($e instanceof ValidationException) {
+                return $this->invalidJson($request, $e);
+            }
+
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
         if (config('app.debug') == true) {
             return parent::render($request, $e);
         } elseif ($e instanceof ValidationException) {
             return parent::render($request, $e);
+        } elseif ($e instanceof \Illuminate\Validation\ValidationException) {
+            return parent::render($request, $e);
         }
 
-        return  response()->view('errors.500');
+        return response()->view('errors.500');
         //return redirect()->route('error500', []);
     }
 
@@ -110,7 +130,7 @@ class Handler extends ExceptionHandler
     {
         $seg = $request->segments();
         if (in_array('api', $seg)) {
-            return response()->json(['status' => '404']);
+            return response()->json(['success' => false, 'message' => 'not-found'], 404);
         }
         if (config('app.debug') == true) {
             if ($e->getStatusCode() == '404') {
@@ -171,10 +191,45 @@ class Handler extends ExceptionHandler
 //                } else {
 //                    return parent::render($request, $e);
 //                }
+            case $e instanceof TokenMismatchException:
+                if ($request->ajax() || $request->wantsJson()) {
+                    $result = ['fails' => \Lang::get('lang.session-expired')];
+
+                    return response()->json(compact('result'), 402);
+                }
+
+                return redirect()->back()->with('fails', \Lang::get('lang.session-expired'));
+            case $e instanceof AuthorizationException:
+                return redirect('/')->with('fails', \Lang::get('lang.access-denied'));
+            case $e instanceof MethodNotAllowedHttpException:
+                if (stripos($request->url(), 'api')) {
+                    $result = ['message' => \Lang::get('lang.methon_not_allowed'), 'success' => false];
+
+                    return response()->json($result, 405);
+                }
+                $this->render500($request, $e);
             default:
                 return $this->render500($request, $e);
         }
 
         return parent::render($request, $e);
+    }
+
+    protected function reportToBugsNag(\Throwable $e)
+    {
+        if (Config::get('app.bugsnag_reporting') && env('APP_ENV') == 'production' && $this->shouldReportBugsnag($e)) {
+            Bugsnag::notifyException($e);
+        }
+    }
+
+    public function shouldReportBugsnag($e)
+    {
+        foreach ($this->dontReport as $report) {
+            if ($e instanceof $report) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

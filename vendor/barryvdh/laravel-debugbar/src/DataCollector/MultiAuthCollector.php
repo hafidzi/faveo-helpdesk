@@ -2,13 +2,28 @@
 
 namespace Barryvdh\Debugbar\DataCollector;
 
+use DebugBar\DataCollector\DataCollector;
+use DebugBar\DataCollector\Renderable;
+use Illuminate\Auth\Recaller;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Guard;
+use Illuminate\Support\Str;
+use Illuminate\Contracts\Support\Arrayable;
+
 /**
  * Collector for Laravel's Auth provider
  */
-class MultiAuthCollector extends AuthCollector
+class MultiAuthCollector extends DataCollector implements Renderable
 {
     /** @var array $guards */
     protected $guards;
+
+    /** @var \Illuminate\Auth\AuthManager */
+    protected $auth;
+
+    /** @var bool */
+    protected $showName = false;
 
     /**
      * @param \Illuminate\Auth\AuthManager $auth
@@ -16,24 +31,44 @@ class MultiAuthCollector extends AuthCollector
      */
     public function __construct($auth, $guards)
     {
-        parent::__construct($auth);
+        $this->auth = $auth;
         $this->guards = $guards;
     }
 
+    /**
+     * Set to show the users name/email
+     * @param bool $showName
+     */
+    public function setShowName($showName)
+    {
+        $this->showName = (bool) $showName;
+    }
 
     /**
      * @{inheritDoc}
      */
     public function collect()
     {
-        $data = [];
+        $data = [
+            'guards' => [],
+        ];
         $names = '';
 
-        foreach($this->guards as $guardName) {
-            $user = $this->auth->guard($guardName)->user();
-            $data['guards'][$guardName] = $this->getUserInformation($user);
-            if(!is_null($user)) {
-                $names .= $guardName . ": " . $data['guards'][$guardName]['name'] . ', ';
+        foreach ($this->guards as $guardName => $config) {
+            try {
+                $guard = $this->auth->guard($guardName);
+                if ($this->hasUser($guard)) {
+                    $user = $guard->user();
+
+                    if (!is_null($user)) {
+                        $data['guards'][$guardName] = $this->getUserInformation($user);
+                        $names .= $guardName . ": " . $data['guards'][$guardName]['name'] . ', ';
+                    }
+                } else {
+                    $data['guards'][$guardName] = null;
+                }
+            } catch (\Exception $e) {
+                continue;
             }
         }
 
@@ -47,7 +82,64 @@ class MultiAuthCollector extends AuthCollector
 
         return $data;
     }
-    
+
+    private function hasUser(Guard $guard)
+    {
+        if (method_exists($guard, 'hasUser')) {
+            return $guard->hasUser();
+        }
+
+        // For Laravel 5.5
+        if (method_exists($guard, 'alreadyAuthenticated')) {
+            return $guard->alreadyAuthenticated();
+        }
+
+        return false;
+    }
+
+    /**
+     * Get displayed user information
+     * @param \Illuminate\Auth\UserInterface $user
+     * @return array
+     */
+    protected function getUserInformation($user = null)
+    {
+        // Defaults
+        if (is_null($user)) {
+            return [
+                'name' => 'Guest',
+                'user' => ['guest' => true],
+            ];
+        }
+
+        // The default auth identifer is the ID number, which isn't all that
+        // useful. Try username and email.
+        $identifier = $user instanceof Authenticatable ? $user->getAuthIdentifier() : $user->id;
+        if (is_numeric($identifier)) {
+            try {
+                if (isset($user->username)) {
+                    $identifier = $user->username;
+                } elseif (isset($user->email)) {
+                    $identifier = $user->email;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return [
+            'name' => $identifier,
+            'user' => $user instanceof Arrayable ? $user->toArray() : $user,
+        ];
+    }
+
+    /**
+     * @{inheritDoc}
+     */
+    public function getName()
+    {
+        return 'auth';
+    }
+
     /**
      * @{inheritDoc}
      */

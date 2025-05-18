@@ -10,7 +10,7 @@ class UrlSettingController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware(['auth', 'roles']);
     }
 
     public function settings(Request $request)
@@ -36,7 +36,7 @@ class UrlSettingController extends Controller
             $string = $string_www.$sting_ssl;
             $this->writeHtaccess($string);
 
-            return redirect()->back()->with('success', 'updated');
+            return redirect()->back()->with('success', trans('lang.updated'));
         } catch (Exception $ex) {
             dd($ex);
 
@@ -91,7 +91,7 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]\n";
     public function changeHttp()
     {
         //$string = "RewriteCond %{HTTPS} off
-//RewriteRule ^(.*)$ http://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]\n";
+        //RewriteRule ^(.*)$ http://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]\n";
         $string = '';
 
         return $string;

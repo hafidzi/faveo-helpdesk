@@ -2,6 +2,8 @@
 
 namespace Intervention\Image\Commands;
 
+use Intervention\Image\Exception\NotSupportedException;
+
 class IptcCommand extends AbstractCommand
 {
     /**
@@ -13,17 +15,17 @@ class IptcCommand extends AbstractCommand
     public function execute($image)
     {
         if ( ! function_exists('iptcparse')) {
-            throw new \Intervention\Image\Exception\NotSupportedException(
+            throw new NotSupportedException(
                 "Reading Iptc data is not supported by this PHP installation."
             );
         }
 
         $key = $this->argument(0)->value();
 
-        $info = array();
+        $info = [];
         @getimagesize($image->dirname .'/'. $image->basename, $info);
 
-        $data = array();
+        $data = [];
 
         if (array_key_exists('APP13', $info)) {
             $iptc = iptcparse($info['APP13']);
@@ -34,6 +36,8 @@ class IptcCommand extends AbstractCommand
                 $data['Category'] = isset($iptc["2#015"][0]) ? $iptc["2#015"][0] : null;
                 $data['Subcategories'] = isset($iptc["2#020"][0]) ? $iptc["2#020"][0] : null;
                 $data['Keywords'] = isset($iptc["2#025"][0]) ? $iptc["2#025"] : null;
+                $data['ReleaseDate'] = isset($iptc["2#030"][0]) ? $iptc["2#030"][0] : null;
+                $data['ReleaseTime'] = isset($iptc["2#035"][0]) ? $iptc["2#035"][0] : null;
                 $data['SpecialInstructions'] = isset($iptc["2#040"][0]) ? $iptc["2#040"][0] : null;
                 $data['CreationDate'] = isset($iptc["2#055"][0]) ? $iptc["2#055"][0] : null;
                 $data['CreationTime'] = isset($iptc["2#060"][0]) ? $iptc["2#060"][0] : null;

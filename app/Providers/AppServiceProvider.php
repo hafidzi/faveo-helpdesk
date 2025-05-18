@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Model\Update\BarNotification;
 use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Dusk\DuskServiceProvider;
 use Queue;
-use View;
+use URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,34 +25,22 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind('Illuminate\Contracts\Auth\Registrar');
         require_once __DIR__.'/../Http/helpers.php';
+        if ($this->app->environment('local', 'testing')) {
+            $this->app->register(DuskServiceProvider::class);
+        }
+        if (isInstall()) {
+            $this->registerPlugin();
+        }
     }
 
     public function boot()
     {
         Queue::failing(function (JobFailed $event) {
-            loging('Failed Job - '.$event->connectionName, json_encode($event->data));
-            $failedid = $event->failedId;
-            //\Artisan::call('queue:retry',['id'=>[$failedid]]);
+            loging('Failed Job - '.$event->connectionName, json_encode([$event->job->payload(), 'error' => $event->exception->getMessage().' file=>'.$event->exception->getFile().' line=>'.$event->exception->getLine()]));
         });
-        // Please note the different namespace
-        // and please add a \ in front of your classes in the global namespace
-        \Event::listen('cron.collectJobs', function () {
-            \Cron::add('example1', '* * * * *', function () {
-                $this->index();
-
-                return 'No';
-            });
-
-            \Cron::add('example2', '*/2 * * * *', function () {
-                // Do some crazy things successfully every two minute
-            });
-
-            \Cron::add('disabled job', '0 * * * *', function () {
-                // Do some crazy things successfully every hour
-            }, false);
-        });
-
+        Route::singularResourceParameters(false);
         $this->composer();
+        URL::forceScheme('https');
     }
 
     public function composer()
@@ -62,5 +52,36 @@ class AppServiceProvider extends ServiceProvider
             ];
             view()->share($not);
         });
+    }
+
+    public function registerPlugin()
+    {
+        $activePlugins = \DB::table('plugins')->select('name', 'path')->where('status', 1)->get();
+        foreach ($activePlugins as $activePlugin) {
+            if ($this->isPluginDir($activePlugin->name)) {
+                $class = '\App\Plugins\\'.$activePlugin->name.'\ServiceProvider';
+                $this->app->register($class);
+            }
+        }
+    }
+
+    public function isPluginDir($name)
+    {
+        $check = false;
+        if (is_dir(app_path('Plugins'.DIRECTORY_SEPARATOR.$name))) {
+            $check = true;
+        }
+
+        return $check;
+    }
+
+    public function isModuleDir($name)
+    {
+        $check = false;
+        if (is_dir(app_path($name))) {
+            $check = true;
+        }
+
+        return $check;
     }
 }

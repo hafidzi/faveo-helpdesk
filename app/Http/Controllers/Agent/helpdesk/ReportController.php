@@ -9,8 +9,9 @@ use App\Model\helpdesk\Manage\Help_topic;
 use App\Model\helpdesk\Ticket\Tickets;
 // Model
 use Illuminate\Http\Request;
+use Vsmoraes\Pdf\PdfFacade;
+
 // classes
-use PDF;
 
 /**
  * ReportController
@@ -91,9 +92,9 @@ class ReportController extends Controller
         $return = '';
         $last = '';
         $j = 0;
-        $created1 = '';
-        $closed1 = '';
-        $reopened1 = '';
+        $created1 = 0;
+        $closed1 = 0;
+        $reopened1 = 0;
         $in_progress = \DB::table('tickets')->where('help_topic_id', '=', $help_topic)->where('status', '=', 1)->count();
 
         for ($i = $date1; $i <= $date2; $i = $i + 86400) {
@@ -263,6 +264,6 @@ class ReportController extends Controller
         $html = view('themes.default1.agent.helpdesk.report.pdf', compact('table_datas', 'table_help_topic'))->render();
         $html1 = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
 
-        return PDF::load($html1)->show();
+        return PdfFacade::load($html1)->show(false, false, false);
     }
 }

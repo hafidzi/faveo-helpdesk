@@ -4,6 +4,7 @@ namespace App\Http\Requests\helpdesk;
 
 use App\Http\Requests\Request;
 use App\Model\helpdesk\Settings\CommonSettings;
+use Illuminate\Support\Arr;
 
 /**
  * CompanyRequest.
@@ -31,7 +32,6 @@ class ClientRequest extends Request
     {
         $check = $this->check(new CommonSettings());
         if ($check != 0) {
-            return $check;
             $custom_rule = $this->getCustomRule();
             $rules = array_merge($check, $custom_rule);
 
@@ -42,6 +42,8 @@ class ClientRequest extends Request
             'Email'   => 'required|email',
             'Subject' => 'required',
             'Details' => 'required',
+            'mobile'  => 'numeric',
+            'Phone'   => 'numeric',
         ];
         $custom_rule = $this->getCustomRule();
         $rules = array_merge($current_rule, $custom_rule);
@@ -117,29 +119,30 @@ class ClientRequest extends Request
     /**
      *@category Funcion to set rule if send opt is enabled
      *
-     *@param object $settings (instance of Model common settings)
+     * @param object $settings (instance of Model common settings)
      *
      *@author manish.verma@ladybirdweb.com
      *
-     *@return array|int
+     * @return array|int
      */
     public function check($settings)
     {
         $settings = $settings->select('status')->where('option_name', '=', 'send_otp')->first();
         $email_mandatory = $settings->select('status')->where('option_name', '=', 'email_mandatory')->first();
-        if (($email_mandatory->status == 0 || $email_mandatory->status == '0')) {
+        if ($email_mandatory->status == 0 || $email_mandatory->status == '0') {
             if (!\Auth::check()) {
                 return [
-                'Name'    => 'required',
-                'Email'   => 'email',
-                'Subject' => 'required',
-                'Details' => 'required',
-                'mobile'  => 'required',
+                    'Name'    => 'required',
+                    'Email'   => 'email',
+                    'Subject' => 'required',
+                    'Details' => 'required',
+                    'mobile'  => 'required|numeric',
+                    'Phone'   => 'numeric',
                 ];
             } else {
                 return [
-                'Subject' => 'required',
-                'Details' => 'required',
+                    'Subject' => 'required',
+                    'Details' => 'required',
                 ];
             }
         } else {
@@ -156,6 +159,6 @@ class ClientRequest extends Request
 //                $purified[] = $this->purifyArray($value);
 //            }
 //        }
-//        return array_dot($purified);
+//        return Arr::dot($purified);
 //    }
 }

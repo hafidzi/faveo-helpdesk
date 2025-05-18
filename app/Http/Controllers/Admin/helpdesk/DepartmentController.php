@@ -14,7 +14,6 @@ use App\Model\helpdesk\Agent\Groups;
 use App\Model\helpdesk\Agent\Teams;
 use App\Model\helpdesk\Email\Emails;
 use App\Model\helpdesk\Email\Template;
-use App\Model\helpdesk\Manage\Help_topic;
 use App\Model\helpdesk\Manage\Sla_plan;
 use App\Model\helpdesk\Settings\System;
 use App\Model\helpdesk\Ticket\Tickets;
@@ -84,7 +83,7 @@ class DepartmentController extends Controller
             $emails = $email->select('email_name', 'id')->get();
             $templates = $template->get();
             $department = $department->get();
-            $groups = $group->lists('id', 'name');
+            $groups = $group->pluck('id', 'name');
 
             return view('themes.default1.admin.helpdesk.agent.departments.create', compact('department', 'templates', 'slas', 'user', 'emails', 'groups'));
         } catch (Exception $e) {
@@ -158,14 +157,14 @@ class DepartmentController extends Controller
                     ->first();
             $slas = $sla->where('status', '=', 1)
                     ->select('grace_period', 'id')->get();
-            $user = $user->where('primary_dpt', $id)
+            $user = $user->where('role', '<>', 'user')
             ->where('active', '=', 1)
             ->get();
             $emails = $email->select('email_name', 'id')->get();
             $templates = $template->get();
             $departments = $department->whereId($id)->first();
-            //$groups = $group->lists('id', 'name');
-            $assign = $group_assign_department->where('department_id', $id)->lists('group_id');
+            //$groups = $group->pluck('id', 'name');
+            $assign = $group_assign_department->where('department_id', $id)->pluck('group_id');
 
             return view('themes.default1.admin.helpdesk.agent.departments.edit', compact('assign', 'team', 'templates', 'departments', 'slas', 'user', 'emails', 'sys_department'));
         } catch (Exception $e) {

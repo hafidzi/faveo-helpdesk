@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Admin\helpdesk;
 
 // controllers
 use App\Http\Controllers\Controller;
-// requests
 use App\Http\Requests\helpdesk\CompanyRequest;
+// requests
 use App\Http\Requests\helpdesk\EmailRequest;
 use App\Http\Requests\helpdesk\SystemRequest;
-// models
 use App\Model\helpdesk\Agent\Department;
+// models
 use App\Model\helpdesk\Email\Emails;
 use App\Model\helpdesk\Email\Template;
 use App\Model\helpdesk\Manage\Help_topic;
@@ -28,11 +28,12 @@ use App\Model\helpdesk\Utility\Date_time_format;
 use App\Model\helpdesk\Utility\Time_format;
 use App\Model\helpdesk\Utility\Timezones;
 use DateTime;
-// classes
 use DB;
+// classes
 use Exception;
 use Illuminate\Http\Request;
-use Input;
+use Illuminate\Support\Facades\Request as Input;
+use Illuminate\Support\Str;
 use Lang;
 
 /**
@@ -97,7 +98,7 @@ class SettingsController2 extends Controller
 
     /**
      * @param int $id
-     * @param $compant instance of company table
+     * @param     $compant instance of company table
      *
      * get the form for company setting page
      *
@@ -117,7 +118,7 @@ class SettingsController2 extends Controller
 
     /**
      * @param int $id
-     * @param $compant instance of company table
+     * @param     $compant instance of company table
      *
      * get the form for company setting page
      *
@@ -150,8 +151,8 @@ class SettingsController2 extends Controller
     public function createStatuses(\App\Model\helpdesk\Ticket\Ticket_Status $statuss)
     {
         //        try {
-            /* fetch the values of company from company table */
-                    $statuss->name = Input::get('name');
+        /* fetch the values of company from company table */
+        $statuss->name = Input::get('name');
         $statuss->icon_class = Input::get('icon_class');
         $statuss->email_user = Input::get('email_user');
         $statuss->sort = Input::get('sort');
@@ -164,7 +165,7 @@ class SettingsController2 extends Controller
         $statuss->sort = Input::get('sort');
         $statuss->save();
         /* Direct to Company Settings Page */
-            return redirect()->back()->with('success', 'Status has been created!');
+        return redirect()->back()->with('success', 'Status has been created!');
 //        } catch (Exception $ex) {
 //            return redirect()->back()->with('fails', $ex->errorInfo[2]);
 //        }
@@ -175,9 +176,9 @@ class SettingsController2 extends Controller
         try {
             if ($id > 5) {
                 /* fetch the values of company from company table */
-             \App\Model\helpdesk\Ticket\Ticket_Status::whereId($id)->delete();
-            /* Direct to Company Settings Page */
-            return redirect()->back()->with('success', 'Status has been deleted');
+                \App\Model\helpdesk\Ticket\Ticket_Status::whereId($id)->delete();
+                /* Direct to Company Settings Page */
+                return redirect()->back()->with('success', 'Status has been deleted');
             } else {
                 return redirect()->back()->with('failed', 'You cannot delete this status');
             }
@@ -188,7 +189,7 @@ class SettingsController2 extends Controller
 
     /**
      * @param int $id
-     * @param $compant instance of company table
+     * @param     $compant instance of company table
      *
      * get the form for company setting page
      *
@@ -243,7 +244,7 @@ class SettingsController2 extends Controller
     /**
      * function to delete system logo.
      *
-     *  @return type string
+     * @return type string
      */
     public function deleteLogo()
     {
@@ -446,12 +447,12 @@ class SettingsController2 extends Controller
     public function getSchedular(Email $email, Template $template, Emails $email1)
     {
         // try {
-             /* fetch the values of email from Email table */
-            $emails = $email->whereId('1')->first();
-            /* Fetch the values from Template table */
-            $templates = $template->get();
-            /* Fetch the values from Emails table */
-            $emails1 = $email1->get();
+        /* fetch the values of email from Email table */
+        $emails = $email->whereId('1')->first();
+        /* Fetch the values from Template table */
+        $templates = $template->get();
+        /* Fetch the values from Emails table */
+        $emails1 = $email1->get();
 
         return view('themes.default1.admin.helpdesk.settings.crone', compact('emails', 'templates', 'emails1'));
         // } catch {
@@ -503,7 +504,7 @@ class SettingsController2 extends Controller
     // 	try {
     // 		/* fetch the values of access from access table */
     // 		$accesses = $access->whereId('1')->first();
-//	// 		 Direct to Access Settings Page
+    //	// 		 Direct to Access Settings Page
     // 		return view('themes.default1.admin.helpdesk.settings.access', compact('accesses'));
     // 	} catch (Exception $e) {
     // 		return view('404');
@@ -614,7 +615,7 @@ class SettingsController2 extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param type         $id
+     * @param type $id
      * @param type Alert   $alert
      * @param type Request $request
      *
@@ -683,7 +684,7 @@ class SettingsController2 extends Controller
     /**
      * 	To display the list of ratings in the system.
      *
-     *  @return type View
+     * @return type View
      */
     public function RatingSettings()
     {
@@ -695,7 +696,7 @@ class SettingsController2 extends Controller
     /**
      * 	To store rating data.
      *
-     *  @return type Redirect
+     * @return type Redirect
      */
     public function PostRatingSettings($slug)
     {
@@ -720,7 +721,7 @@ class SettingsController2 extends Controller
     /**
      *  To delete a type of rating.
      *
-     * 	@return type Redirect
+     * @return type Redirect
      */
     public function RatingDelete($slug)
     {
@@ -732,11 +733,11 @@ class SettingsController2 extends Controller
     /**
      *  Generate Api key.
      *
-     *  @return type json
+     * @return type json
      */
     public function generateApiKey()
     {
-        $key = str_random(32);
+        $key = Str::random(32);
 
         return $key;
     }

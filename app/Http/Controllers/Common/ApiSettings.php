@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
 use App\Model\Api\ApiSetting;
-use App\Model\helpdesk\Ticket\Ticket_Thread;
 use App\Model\helpdesk\Ticket\Tickets;
 use DB;
 use Exception;
 use Illuminate\Http\Request;
-use Input;
+use Illuminate\Support\Facades\Request as Input;
+use Lang;
 use Log;
 
 class ApiSettings extends Controller
@@ -34,7 +34,7 @@ class ApiSettings extends Controller
             $ticket_detail = '';
             $settings = $this->api;
             if ($settings->get()->count() > 0) {
-                $details = $this->api->lists('value', 'key')->toArray();
+                $details = $this->api->pluck('value', 'key')->toArray();
             }
             if (array_key_exists('ticket_detail', $details)) {
                 $ticket_detail = $details['ticket_detail'];
@@ -51,6 +51,7 @@ class ApiSettings extends Controller
         $this->validate($request, [
             'ticket_detail' => 'url',
         ]);
+
         try {
             // dd($request->input());
             DB::table('settings_system')
@@ -68,7 +69,7 @@ class ApiSettings extends Controller
                 $settings->create(['key' => $key, 'value' => $value]);
             }
 
-            return redirect()->back()->with('success', 'Updated Successfully');
+            return redirect()->back()->with('success', Lang::get('lang.updated_successfully'));
         } catch (Exception $ex) {
             return redirect()->back()->with('fails', $ex->getMessage());
         }
@@ -91,6 +92,7 @@ class ApiSettings extends Controller
             $this->postHook($data);
         } catch (Exception $ex) {
             dd($ex);
+
             throw new Exception($ex->getMessage());
         }
     }
@@ -106,6 +108,7 @@ class ApiSettings extends Controller
             }
         } catch (Exception $ex) {
             dd($ex);
+
             throw new Exception($ex->getMessage());
         }
     }

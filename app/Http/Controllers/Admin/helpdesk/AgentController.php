@@ -87,13 +87,13 @@ class AgentController extends Controller
             // get all department
             $departments = $department->get();
             // list all the teams in a single variable
-            $teams = $team->lists('id', 'name')->toArray();
+            $teams = $team->pluck('id', 'name')->toArray();
             $location = GeoIP::getLocation();
             $phonecode = $code->where('iso', '=', $location->iso_code)->first();
             // returns to the page with all the variables and their datas
             $send_otp = DB::table('common_settings')->select('status')->where('option_name', '=', 'send_otp')->first();
 
-            return view('themes.default1.admin.helpdesk.agent.agents.create', compact('assign', 'teams', 'agents', 'timezones', 'groups', 'departments', 'team', 'send_otp'))->with('phonecode', $phonecode->phonecode);
+            return view('themes.default1.admin.helpdesk.agent.agents.create', compact('teams', 'timezones', 'groups', 'departments', 'team', 'send_otp'))->with('phonecode', $phonecode->phonecode);
         } catch (Exception $e) {
             // returns if try fails with exception meaagse
             return redirect()->back()->with('fails', $e->getMessage());
@@ -157,7 +157,7 @@ class AgentController extends Controller
             }
             // returns for the success case
             if ($request->input('active') == '0' || $request->input('active') == 0) {
-                \Event::fire(new \App\Events\LoginEvent($request));
+                event(new \App\Events\LoginEvent($request));
             }
 
             return redirect('agents')->with('success', Lang::get('lang.agent_creation_success'));
@@ -187,15 +187,15 @@ class AgentController extends Controller
             $phonecode = $code->where('iso', '=', $location->iso_code)->first();
             $user = $user->whereId($id)->first();
             $team = $team->where('status', '=', 1)->get();
-            $teams1 = $team->lists('name', 'id');
+            $teams1 = $team->pluck('name', 'id');
             $timezones = $timezone->get();
             $groups = $group->where('group_status', '=', 1)->get();
             $departments = $department->get();
             $table = $team_assign_agent->where('agent_id', $id)->first();
-            $teams = $team->lists('id', 'name')->toArray();
-            $assign = $team_assign_agent->where('agent_id', $id)->lists('team_id')->toArray();
+            $teams = $team->pluck('id', 'name')->toArray();
+            $assign = $team_assign_agent->where('agent_id', $id)->pluck('team_id')->toArray();
 
-            return view('themes.default1.admin.helpdesk.agent.agents.edit', compact('teams', 'assign', 'table', 'teams1', 'selectedTeams', 'user', 'timezones', 'groups', 'departments', 'team', 'exp', 'counted'))->with('phonecode', $phonecode->phonecode);
+            return view('themes.default1.admin.helpdesk.agent.agents.edit', compact('teams', 'assign', 'table', 'teams1', 'user', 'timezones', 'groups', 'departments', 'team'))->with('phonecode', $phonecode->phonecode);
         } catch (Exception $e) {
             return redirect('agents')->with('fail', Lang::get('lang.failed_to_edit_agent'));
         }
@@ -271,11 +271,14 @@ class AgentController extends Controller
         $team_assign_agent = $team_assign_agent->where('agent_id', $id);
         $team_assign_agent->delete();
         $user = $user->whereId($id)->first();
+
         try {
             $error = Lang::get('lang.this_staff_is_related_to_some_tickets');
             $user->id;
             $user->delete();
+
             throw new \Exception($error);
+
             return redirect('agents')->with('success', Lang::get('lang.agent_deleted_sucessfully'));
         } catch (\Exception $e) {
             return redirect('agents')->with('fails', $error);

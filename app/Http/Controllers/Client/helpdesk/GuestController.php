@@ -28,7 +28,7 @@ use Exception;
 use GeoIP;
 use Hash;
 use Illuminate\Http\Request;
-use Input;
+use Illuminate\Support\Facades\Request as Input;
 use Lang;
 use Socialite;
 
@@ -73,7 +73,7 @@ class GuestController extends Controller
     /**
      * Save profile data.
      *
-     * @param type                $id
+     * @param type $id
      * @param type ProfileRequest $request
      *
      * @return type Response
@@ -92,19 +92,19 @@ class GuestController extends Controller
                 }
                 $user->country_code = $request->country_code;
             }
-            $user->fill($request->except('profile_pic', 'mobile'));
+            $user->fill($request->except('profile_pic', 'mobile', 'active', 'role', 'is_delete', 'ban'));
             $user->gender = $request->input('gender');
             $user->save();
             if (Input::file('profile_pic')) {
                 // fetching picture name
                 $name = Input::file('profile_pic')->getClientOriginalName();
-            // fetching upload destination path
+                // fetching upload destination path
                 $destinationPath = 'uploads/profilepic';
-            // adding a random value to profile picture filename
-                $fileName = rand(0000, 9999).'.'.$name;
-            // moving the picture to a destination folder
+                // adding a random value to profile picture filename
+                $fileName = rand(0000, 9999).'.'.str_replace(' ', '_', $name);
+                // moving the picture to a destination folder
                 Input::file('profile_pic')->move($destinationPath, $fileName);
-            // saving filename to database
+                // saving filename to database
                 $user->profile_pic = $fileName;
             }
             if ($request->get('mobile')) {
@@ -125,9 +125,9 @@ class GuestController extends Controller
     /**
      *@category fucntion to check if mobile number is unqique or not
      *
-     *@param string $mobile
+     * @param string $mobile
      *
-     *@return bool true(if mobile exists in users table)/false (if mobile does not exist in user table)
+     * @return bool true(if mobile exists in users table)/false (if mobile does not exist in user table)
      */
     public function checkMobile($mobile)
     {
@@ -226,7 +226,7 @@ class GuestController extends Controller
     /**
      * Post porfile password.
      *
-     * @param type                 $id
+     * @param type $id
      * @param type ProfilePassword $request
      *
      * @return type Response
@@ -237,6 +237,7 @@ class GuestController extends Controller
         //echo $user->password;
         if (Hash::check($request->input('old_password'), $user->getAuthPassword())) {
             $user->password = Hash::make($request->input('new_password'));
+
             try {
                 $user->save();
 
@@ -298,8 +299,8 @@ class GuestController extends Controller
     public function PostCheckTicket(Request $request)
     {
         $validator = \Validator::make($request->all(), [
-                    'email'         => 'required|email',
-                    'ticket_number' => 'required',
+            'email'         => 'required|email',
+            'ticket_number' => 'required',
         ]);
         if ($validator->fails()) {
             return redirect()->back()
@@ -329,7 +330,10 @@ class GuestController extends Controller
                 $company = $this->company();
 
                 $this->PhpMailController->sendmail(
-                        $from = $this->PhpMailController->mailfrom('1', '0'), $to = ['name' => $username, 'email' => $user->email], $message = ['subject' => 'Ticket link Request ['.$Ticket_number.']', 'scenario' => 'check-ticket'], $template_variables = ['user' => $username, 'ticket_link_with_number' => \URL::route('check_ticket', $code)]
+                    $from = $this->PhpMailController->mailfrom('1', '0'),
+                    $to = ['name' => $username, 'email' => $user->email],
+                    $message = ['subject' => 'Ticket link Request ['.$Ticket_number.']', 'scenario' => 'check-ticket'],
+                    $template_variables = ['user' => $username, 'ticket_link_with_number' => \URL::route('check_ticket', $code)]
                 );
 
                 return \Redirect::back()
@@ -388,7 +392,7 @@ class GuestController extends Controller
         if (\Schema::hasTable('sms')) {
             $sms = DB::table('sms')->get();
             if (count($sms) > 0) {
-                \Event::fire(new \App\Events\LoginEvent($request));
+                event(new \App\Events\LoginEvent($request));
 
                 return 1;
             }
@@ -405,7 +409,7 @@ class GuestController extends Controller
                                 ->first();
         if ($otp != null) {
             $otp_length = strlen(Input::get('otp'));
-            if (($otp_length == 6 && !preg_match('/[a-z]/i', Input::get('otp')))) {
+            if ($otp_length == 6 && !preg_match('/[a-z]/i', Input::get('otp'))) {
                 $otp2 = Hash::make(Input::get('otp'));
                 $date1 = date_format($otp->updated_at, 'Y-m-d h:i:sa');
                 $date2 = date('Y-m-d h:i:sa');

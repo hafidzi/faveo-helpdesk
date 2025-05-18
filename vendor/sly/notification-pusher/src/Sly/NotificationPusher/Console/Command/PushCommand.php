@@ -23,7 +23,7 @@ use Sly\NotificationPusher\Model\Message;
 use Sly\NotificationPusher\Model\Push;
 use Sly\NotificationPusher\Exception\AdapterException;
 
-use Doctrine\Common\Inflector\Inflector;
+use Doctrine\Common\Util\Inflector;
 
 /**
  * PushCommand.
@@ -89,7 +89,7 @@ class PushCommand extends Command
     {
         $adapter     = $this->getReadyAdapter($input, $output);
         $pushManager = new PushManager($input->getOption('env'));
-        $message     = new Message($input->getArgument('message'));
+        $message     = new Message('This is an example.');
         $push        = new Push($adapter, new Device($input->getArgument('token')), $message);
         $pushManager->add($push);
 
@@ -132,7 +132,7 @@ class PushCommand extends Command
         try {
             $adapter = new $adapterClass();
         } catch (\Exception $e) {
-            $adapterData = [];
+            $adapterData = array();
             preg_match_all('/"(.*)"/i', $e->getMessage(), $matches);
 
             foreach ($matches[1] as $match) {

@@ -49,7 +49,7 @@ class TeamController extends Controller
         try {
             $teams = $team->get();
             /*  find out the Number of Members in the Team */
-            $id = $teams->lists('id');
+            $id = $teams->pluck('id');
             $assign_team_agent = $assign_team_agent->get();
 
             return view('themes.default1.admin.helpdesk.agent.teams.index', compact('assign_team_agent', 'teams'));
@@ -114,7 +114,7 @@ class TeamController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param type                   $id
+     * @param type $id
      * @param type User              $user
      * @param type Assign_team_agent $assign_team_agent
      * @param type Teams             $team
@@ -143,16 +143,16 @@ class TeamController extends Controller
     {
         // dd($request);
 
-// $id = $request->input('show_id');
+        // $id = $request->input('show_id');
 
-// dd($id);
+        // dd($id);
 
-$users = DB::table('team_assign_agent')->select('team_assign_agent.id', 'team_assign_agent.team_id', 'users.user_name', 'users.first_name', 'users.last_name', 'users.active', 'users.assign_group', 'users.primary_dpt', 'users.role')
+        $users = DB::table('team_assign_agent')->select('team_assign_agent.id', 'team_assign_agent.team_id', 'users.user_name', 'users.first_name', 'users.last_name', 'users.active', 'users.assign_group', 'users.primary_dpt', 'users.role')
           ->join('users', 'users.id', '=', 'team_assign_agent.agent_id')
           ->where('team_assign_agent.team_id', '=', $id);
 //           ->get();
-// dd($users);
-            return \Datatable::query($users)
+        // dd($users);
+        return \Datatable::query($users)
             ->showColumns('user_name')
 
             ->addColumn('first_name', function ($model) {
@@ -200,7 +200,7 @@ $users = DB::table('team_assign_agent')->select('team_assign_agent.id', 'team_as
     /**
      * Show the form for editing the specified resource.
      *
-     * @param type                   $id
+     * @param type $id
      * @param type User              $user
      * @param type Assign_team_agent $assign_team_agent
      * @param type Teams             $team
@@ -213,14 +213,14 @@ $users = DB::table('team_assign_agent')->select('team_assign_agent.id', 'team_as
             $a_id = [];
             $teams = $team->whereId($id)->first();
             $agent_team = $assign_team_agent->where('team_id', $id)->get();
-            $agent_id = $agent_team->lists('agent_id', 'agent_id');
+            $agent_id = $agent_team->pluck('agent_id', 'agent_id');
             foreach ($agent_id as $value) {
                 array_push($a_id, $value);
             }
             // dd($a_id);
             $user = $user->whereIn('id', $a_id)->where('active', '=', 1)->orderBy('first_name')->get();
             // dd($user);
-            return view('themes.default1.admin.helpdesk.agent.teams.edit', compact('agent_id', 'user', 'teams', 'allagents'));
+            return view('themes.default1.admin.helpdesk.agent.teams.edit', compact('agent_id', 'user', 'teams'));
         } catch (Exception $e) {
             return redirect()->back()->with('fails', $e->getMessage());
         }

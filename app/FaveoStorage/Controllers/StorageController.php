@@ -12,17 +12,29 @@ use Storage;
 class StorageController extends Controller
 {
     protected $default;
+
     protected $driver;
+
     protected $root;
+
     protected $s3_key;
+
     protected $s3_region;
+
     protected $s3_secret;
+
     protected $s3_bucket;
+
     protected $rackspace_key;
+
     protected $rackspace_region;
+
     protected $rackspace_username;
+
     protected $rackspace_container;
+
     protected $rackspace_endpoint;
+
     protected $rackspace_url_type;
 
     public function __construct()
@@ -135,13 +147,13 @@ class StorageController extends Controller
         foreach ($config as $key => $con) {
             if (is_array($con)) {
                 foreach ($con as $k => $v) {
-                    Config::set("filesystem.$key.$k", $v);
+                    Config::set("filesystems.$key.$k", $v);
                 }
             }
-            Config::set("filesystem.$key", $con);
+            Config::set("filesystems.$key", $con);
         }
 
-        return Config::get('filesystem');
+        return Config::get('filesystems');
     }
 
     protected function config()
@@ -188,10 +200,14 @@ class StorageController extends Controller
         $upload->size = $size;
         $upload->poster = $disposition;
         $upload->driver = $this->default;
-        $upload->path = $this->root;
+        $upload->path = $this->root.DIRECTORY_SEPARATOR.'attachments';
         if ($this->default !== 'database') {
             $this->setFileSystem();
             Storage::disk($this->default)->put($filename, $data);
+            $storagePath = Storage::disk($this->default)->path($filename);
+            if (mime(\File::mimeType($storagePath)) != 'image' || mime(\File::extension($storagePath)) != 'image') {
+                chmod($storagePath, 1204);
+            }
         } else {
             $upload->file = $data;
         }
@@ -202,48 +218,68 @@ class StorageController extends Controller
 
     public function saveAttachments($thread_id, $attachments = [])
     {
-        if (is_array($attachments) && count($attachments) > 0) {
-            foreach ($attachments as $attachment) {
-                $structure = $attachment->getStructure();
-                $disposition = 'ATTACHMENT';
-                if (isset($structure->disposition)) {
-                    $disposition = $structure->disposition;
+        $disposition = 'ATTACHMENT';
+        $thread = '';
+        foreach ($attachments as $attachment) {
+            if (is_object($attachment)) {
+                if (method_exists($attachment, 'getStructure')) {
+                    $structure = $attachment->getStructure();
+                    if (isset($structure->disposition)) {
+                        $disposition = $structure->disposition;
+                    }
+                    $filename = rand(1111, 9999).'_'.$attachment->getFileName();
+                    $type = $attachment->getMimeType();
+                    $size = $attachment->getSize();
+                    $data = $attachment->getData();
+                } else {
+                    $filename = rand(1111, 9999).'_'.$attachment->getClientOriginalName();
+                    $type = $attachment->getMimeType();
+                    $size = $attachment->getSize();
+                    $data = file_get_contents($attachment->getRealPath());
                 }
-                $filename = str_random(16).'-'.$attachment->getFileName();
-                $type = $attachment->getMimeType();
-                $size = $attachment->getSize();
-                $data = $attachment->getData();
                 $this->upload($data, $filename, $type, $size, $disposition, $thread_id);
-                $this->updateBody($attachment, $thread_id, $filename);
+                $thread = $this->updateBody($attachment, $thread_id, $filename);
             }
         }
+
+        return $thread;
     }
 
     public function updateBody($attachment, $thread_id, $filename)
     {
-        $structure = $attachment->getStructure();
+        $threads = new Ticket_Thread();
+        $thread = $threads->find($thread_id);
         $disposition = 'ATTACHMENT';
-        if (isset($structure->disposition)) {
-            $disposition = $structure->disposition;
+        if (is_object($attachment)) {
+            if (method_exists($attachment, 'getStructure')) {
+                $structure = $attachment->getStructure();
+                if (isset($structure->disposition)) {
+                    $disposition = $structure->disposition;
+                }
+            }
         }
+
         if ($disposition == 'INLINE' || $disposition == 'inline') {
             $id = str_replace('>', '', str_replace('<', '', $structure->id));
-            $threads = new Ticket_Thread();
-            $thread = $threads->find($thread_id);
             $body = $thread->body;
+            // dd($id,$filename,$body);
             $body = str_replace('cid:'.$id, $filename, $body);
+            // dd($body);
             $thread->body = $body;
             $thread->save();
         }
+
+        return $thread;
     }
 
-    public function getFile($drive, $name)
+    public function getFile($drive, $name, $root)
     {
-        //dd($drive,$name);
         if ($drive != 'database') {
-            $this->setFileSystem();
-            if (Storage::disk($this->default)->exists($name)) {
-                return Storage::disk($this->default)->get($name);
+            $root = $root.DIRECTORY_SEPARATOR.$name;
+            if (\File::exists($root)) {
+                chmod($root, 0755);
+
+                return \File::get($root);
             }
         }
     }

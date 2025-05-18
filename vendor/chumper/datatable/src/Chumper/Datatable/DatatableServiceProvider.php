@@ -5,12 +5,12 @@ use View;
 
 class DatatableServiceProvider extends ServiceProvider {
 
-	/**
-	 * Indicates if loading of the provider is deferred.
-	 *
-	 * @var bool
-	 */
-	protected $defer = false;
+    /**
+     * Indicates if loading of the provider is deferred.
+     *
+     * @var bool
+     */
+    protected $defer = false;
 
     /**
      * Bootstrap the application events.
@@ -29,16 +29,16 @@ class DatatableServiceProvider extends ServiceProvider {
     }
 
     /**
-	 * Register the service provider.
-	 *
-	 * @return void
-	 */
+     * Register the service provider.
+     *
+     * @return void
+     */
     public function register()
     {
 
         $this->mergeConfigFrom(__DIR__.'/../../config/config.php', 'chumper.datatable');
 
-        $this->app['datatable'] = $this->app->share(function($app)
+        $this->app->singleton('datatable', function($app)
         {
             return new Datatable;
         });

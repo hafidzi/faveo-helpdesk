@@ -3,8 +3,13 @@
 namespace Illuminate\Foundation\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernelContract;
 use Illuminate\Filesystem\Filesystem;
+use LogicException;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Throwable;
 
+#[AsCommand(name: 'config:cache')]
 class ConfigCacheCommand extends Command
 {
     /**
@@ -13,6 +18,17 @@ class ConfigCacheCommand extends Command
      * @var string
      */
     protected $name = 'config:cache';
+
+    /**
+     * The name of the console command.
+     *
+     * This name is used to identify the command during lazy loading.
+     *
+     * @var string|null
+     *
+     * @deprecated
+     */
+    protected static $defaultName = 'config:cache';
 
     /**
      * The console command description.
@@ -45,18 +61,30 @@ class ConfigCacheCommand extends Command
      * Execute the console command.
      *
      * @return void
+     *
+     * @throws \LogicException
      */
-    public function fire()
+    public function handle()
     {
-        $this->call('config:clear');
+        $this->callSilent('config:clear');
 
         $config = $this->getFreshConfiguration();
 
+        $configPath = $this->laravel->getCachedConfigPath();
+
         $this->files->put(
-            $this->laravel->getCachedConfigPath(), '<?php return '.var_export($config, true).';'.PHP_EOL
+            $configPath, '<?php return '.var_export($config, true).';'.PHP_EOL
         );
 
-        $this->info('Configuration cached successfully!');
+        try {
+            require $configPath;
+        } catch (Throwable $e) {
+            $this->files->delete($configPath);
+
+            throw new LogicException('Your configuration files are not serializable.', 0, $e);
+        }
+
+        $this->components->info('Configuration cached successfully.');
     }
 
     /**
@@ -68,7 +96,9 @@ class ConfigCacheCommand extends Command
     {
         $app = require $this->laravel->bootstrapPath().'/app.php';
 
-        $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+        $app->useStoragePath($this->laravel->storagePath());
+
+        $app->make(ConsoleKernelContract::class)->bootstrap();
 
         return $app['config']->all();
     }

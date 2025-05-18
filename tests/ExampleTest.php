@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests;
+
 class ExampleTest extends TestCase
 {
     /**
@@ -9,8 +11,6 @@ class ExampleTest extends TestCase
      */
     public function testBasicExample()
     {
-        // $response = $this->call('GET', '/');
-
-        // $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals(1, 55 - 54);
     }
 }

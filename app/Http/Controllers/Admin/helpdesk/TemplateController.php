@@ -16,7 +16,7 @@ use App\Model\helpdesk\Utility\Languages;
 // classes
 use Exception;
 use Illuminate\Http\Request;
-use Input;
+use Illuminate\Support\Facades\Request as Input;
 
 /**
  * TemplateController.
@@ -115,7 +115,7 @@ class TemplateController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param type           $id
+     * @param type $id
      * @param type Template  $template
      * @param type Languages $language
      *
@@ -157,11 +157,11 @@ class TemplateController extends Controller
         $fname = Input::get('folder_name');
         $filename = $directory.$fname;
 
-// images folder creation using php
-//   $mydir = dirname( __FILE__ )."/html/images";
-//   if(!is_dir($mydir)){
-//   mkdir("html/images");
-//   }
+        // images folder creation using php
+        //   $mydir = dirname( __FILE__ )."/html/images";
+        //   if(!is_dir($mydir)){
+        //   mkdir("html/images");
+        //   }
         // Move all images files
 
         if (!file_exists($filename)) {
@@ -339,7 +339,10 @@ class TemplateController extends Controller
 
             $this->PhpMailController->sendmail($from, $to_address, $message, [], []);
 
-            return redirect()->back()->with('success', 'Mail has send successfully');
+            return redirect()->back()->with(
+                'success',
+                trans('lang.mail-sent-to-job-for-process')
+            );
         } catch (Exception $e) {
             return redirect()->back()->with('fails', $e->getMessage());
         }

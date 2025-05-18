@@ -3,18 +3,21 @@
 namespace App\Jobs;
 
 use App\Http\Controllers\Common\PhpMailController;
-use Illuminate\Contracts\Bus\SelfHandling;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SendEmail extends Job implements SelfHandling, ShouldQueue
+class SendEmail extends Job implements ShouldQueue
 {
-    use InteractsWithQueue,SerializesModels;
+    use InteractsWithQueue;
+    use SerializesModels;
 
     protected $from;
+
     protected $to;
+
     protected $message;
+
     protected $template;
 
     /**
@@ -37,8 +40,13 @@ class SendEmail extends Job implements SelfHandling, ShouldQueue
      */
     public function handle(PhpMailController $PhpMailController)
     {
-        $p = $PhpMailController->sendEmail($this->from, $this->to, $this->message, $this->template);
+        try {
+            $p = $PhpMailController->sendEmail($this->from, $this->to, $this->message, $this->template);
 
-        return $p;
+            return $p;
+        } catch (\Exception $e) {
+            logger()->warning($e->getMessage());
+            session()->flash('fails', $e->getMessage());
+        }
     }
 }

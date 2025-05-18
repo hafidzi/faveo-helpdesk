@@ -95,7 +95,7 @@ class CannedController extends Controller
     /**
      * Show the form for editing the Canned Response.
      *
-     * @param type        $id
+     * @param type $id
      * @param type Canned $canned
      *
      * @return type View
@@ -115,7 +115,7 @@ class CannedController extends Controller
     /**
      * Update the Canned Response in database.
      *
-     * @param type                     $id
+     * @param type $id
      * @param type CannedUpdateRequest $request
      * @param type Canned              $canned
      *
@@ -142,7 +142,7 @@ class CannedController extends Controller
     /**
      * Delete the Canned Response from storage.
      *
-     * @param type        $id
+     * @param type $id
      * @param type Canned $canned
      *
      * @return type Redirect
@@ -156,7 +156,7 @@ class CannedController extends Controller
             /* Check whether function success or not */
             $canned->delete();
             /* redirect to Index page with Success Message */
-            return redirect()->route('canned.list')->with('success', Lang::get('lang.user_deleted_successfully'));
+            return redirect()->route('canned.list')->with('success', Lang::get('lang.canned_response_deleted'));
         } catch (Exception $e) {
             /* redirect to Index page with Fails Message */
             return redirect()->route('canned.list')->with('fails', $e->getMessage());

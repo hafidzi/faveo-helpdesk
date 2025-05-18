@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Http\Controllers\Agent\helpdesk\MailController;
 use App\Http\Controllers\Agent\helpdesk\TicketWorkflowController;
-use Event;
 use Illuminate\Console\Command;
 
 class TicketFetch extends Command
@@ -40,14 +39,14 @@ class TicketFetch extends Command
      */
     public function handle()
     {
-        if (env('DB_INSTALL') == 1) {
+        if (isInstall()) {
             $controller = $this->mailController();
             $emails = new \App\Model\helpdesk\Email\Emails();
             $settings_email = new \App\Model\helpdesk\Settings\Email();
             $system = new \App\Model\helpdesk\Settings\System();
             $ticket = new \App\Model\helpdesk\Settings\Ticket();
             $controller->readmails($emails, $settings_email, $system, $ticket);
-            Event::fire('ticket.fetch', ['event' => '']);
+            event('ticket.fetch', ['event' => '']);
             loging('fetching-ticket', 'Ticket has read', 'info');
             //\Log::info('Ticket has read');
             $this->info('Ticket has read');

@@ -1,4 +1,248 @@
 
+ ______                      _    _      _           _           _    
+|  ____|                    | |  | |    | |         | |         | |   
+| |__ __ ___   _____  ___   | |__| | ___| |_ __   __| | ___  ___| | __
+|  __/ _` \ \ / / _ \/ _ \  |  __  |/ _ \ | '_ \ / _` |/ _ \/ __| |/ /
+| | | (_| |\ V /  __/ (_) | | |  | |  __/ | |_) | (_| |  __/\__ \   < 
+|_|  \__,_| \_/ \___|\___/  |_|  |_|\___|_| .__/ \__,_|\___||___/_|\_\
+                                          | |                         
+                                          |_|                         
+|=====================================================
+| v2.0.3 Added Unit Test cases
+|=====================================================
+
+### Updates
+- Fixes #8188 (Integrate with Jenkin & Codacy)
+- Fixes #8245 (Added Arabic Language support)
+
+### Bug Fixes
+- Fixes #8213
+- Fixes #8180
+- Fixes #727
+- Fixes #566
+- Fixes #697
+
+
+|=====================================================
+| v2.0.2 Theme Update and Clockwork Feature Addition
+|=====================================================
+"This release updates the theme to the latest version, enhancing the UI design of the system while maintaining the same user experience."
+
+## Updates ##
+- Updated jQuery version to v3.6.3.
+- Updated Bootstrap version to v5.
+- Updated AdminLTE theme to v3.2.0.
+- Added the clock-work debugging feature.
+
+## Bugfixes ##
+- Fixed an issue where selecting a custom field in the create ticket would result in a 500 error.
+- Addressed XSS injection vulnerability.
+- Resolved internal server error when no user with a mobile number exists.
+- Fixed the issue where the token value was made public during the ticket creation via API v1.
+- Added SECURITY.md
+
+## Changes logs ##
+- Jquery version v3.6.3
+- Bootstrap version V5
+
+|=====================================================
+| v2.0.1 Minor Bug Fixes
+|=====================================================
+### Bug Fixes
+- Fixes #8006 (Faveo Api Install Issue)
+- Fixes #8106 (Faveo-Helpdesk Community Edition - CLI install fails (GUI install is fine))
+- Fixes #8114 (When we click on the register button and categories button getting the below error.)
+- Fixes #8068
+
+### Change Logs
+- Updated Bugnag Key
+
+|=====================================================
+| v2.0.0 Laravel Upgrade, PHP 8.1, Mysql 8 and InnoDB
+|=====================================================
+
+#### Updates
+- We updated Laravel, PHP, and Mysql versions.
+- We included a Manual update feature too.
+
+#### Steps to Manual Update
+- Replace or Rebase the code in an existing file path
+- Update the Php version to 8.1
+- Run "**_composer dump-autoload_**"
+- Then run "**_php artisan database:sync_**"
+- Now your application updated to our latest version
+
+**Change Logs**
+- Php 8.1 supports
+- Laravel 9 supports
+- Mysql 8 supports
+- InnoDB driver supports
+
+|=====================================================
+| v1.11.1 Urgent security patch
+|=====================================================
+This release is a patch update for the high-level security risk found and reported by [Shahrir Shafie](https://www.linkedin.com/in/shahrir-shafie-884293117) in the vulnerable API endpoints.
+
+We categorized this vulnerability as a Severe level issue and recommend everyone to update the system ASAP.
+
+Follow this [Upgrade Guide](https://github.com/ladybirdweb/faveo-helpdesk/wiki/General-Faveo-Upgrade-Guide---Manual) to update your system. 
+
+> Note the issue is affecting all the older version of the system, if in any case you are not able to update the system, we request you to get in touch with support and get your system patched.
+
+|=====================================================
+| v1.11.0 Urgent security patch and theme update
+|=====================================================
+This is an urgent patch for several security vulnerabilities found and reported by [Securized](https://github.com/securized) in the system. We highly recommend updating the system to get rid of all the security issues in your system and secure your system from vulnerabilities and attackers.
+
+Along with some urgent security updates, this release also updates the frontend framework and theme version to the latest which enhances the UI design of the system, keeping the same user experience.
+
+#### Updates
+- Updated jQuery version to v3
+- Updated Bootstrap version to v4
+- Updated AdminLTE theme to v3
+- Updated Russian translation to cover 80% of the system. Thanks, @maranqz for raising the PR and providing proper translation files.
+
+#### Bugfixes
+- Various UI bugs and issues
+- Generate PDF error
+- Laravel route middleware grouping correction
+- Storage option functionality corrections
+- Clients are not able to change ticket status
+- Report PDF generation
+- Security issues reported by @securized. More details can be found on their [gist](https://gist.github.com/securized/7c702ca002d3d72f3100bc5eb17ec0dd)
+
+**Important**: The system was not generating the unique APP_KEY in the environment which makes your system vulnerable to expose sensitive data due to a hardcoded encryption key. This can simply be fixed by generating your own Laravel APP_KEY using Laravel's artisan commands. 
+Faveo also introduced its own artisan command to alter the APP_KEY to replace your old key with the new key. The advantage of this command is it allows you to update the application's key and updates the required encrypted data in the system so you do not need to update configurations in the system manually. But we still recommend you update system configurations manually to minimize the possibility of attacks on your data. You can use this command from your Faveo root directory as below
+```
+php artisan faveo:secure-key
+```
+
+> NOTE: This security patch requires all agents and admin to login and start their session again. Also, all the old encrypted URLs will be reset and will not work any longer.
+
+Follow this [Upgrade Guide](https://github.com/ladybirdweb/faveo-helpdesk/wiki/General-Faveo-Upgrade-Guide---Manual) to update your system. This update does not require any database update. After the update, we highly recommend running the below commands to secure your Faveo system.
+`php artisan key:generate` or `php artisan faveo:secure-key`
+ 
+|=====================================================
+| v1.10.7 Security patch
+|=====================================================
+- Updates symfony/http-foundation to 4.4.1
+- Added Brazilian Portuguese
+
+|=====================================================
+| v1.10.6 Chrome UI issue fix patch
+|=====================================================
+Issue #1665 fix patch
+
+Recent updates of Chrome browser introduced an issue in ticket timeline page where the reply threads from users were not visible in chrome browser's latest version. 
+
+The last release fixed the issue for agent/admin view. However, the issue persisted for client view in Chrome browser. Check out [the issue](https://github.com/ladybirdweb/faveo-helpdesk/issues/1665) raised for the same.
+
+Issue Reported by: [@n3zsistemas](https://github.com/n3zsistemas)
+
+We would like to thank the Faveo community users who report their issues with the system and help us to make Faveo Helpdesk better for other users.
+
+|=====================================================
+| v1.10.5 Chrome UI issue fix patch
+|=====================================================
+Recent updates of Chrome browser introduced an issue in ticket timeline page where the reply threads from users were not visible in chrome browser's latest version. 
+
+|=====================================================
+| v1.10.4 Security patch for Slack channel
+|=====================================================
+While integrating slack notifications in Travis for builds and PRs token for SLACK channel was not encrypted allowing anyone to use the credentials and post in the Slack channel as a Travis user. This update encrypts the slack token to fix the issue.
+
+|=====================================================
+| v1.10.3 Bug Fix patch with plugin working update
+|=====================================================
+- Changed plugin settings to activate and deactivate plugin by removing the update process for the config/app.php file.
+- Changed plugin ServiceProvider registration technique by removing the hard-coded code AppServiceProvider.php file. Now We are registering all plugins' ServiceProvider classes available for active plugins with status as 1 in plugins table in the database. It provides more dynamicity to developers so they need not worry about registering their custom plugin's ServiceProvider.
+- Added new event "after.ticket.created" which gets fired after tickets get created and contain ticket data. It can be useful for developers for creating new plugins which need to perform a certain action after the ticket is created.
+- Updated helpers.php added new method carbon() to parse string date into carbon date object.
+- Added Spanish language translation (translates system up to 60% in Spanish)
+- Forget password validation exception removed dd() statement
+- Updated isInstall() method get installation value from Config instead of directly calling from .env
+- SLA deletion issue fixed #714
+- Updates for Plugin working
+
+|=====================================================
+| v1.10.2 Bug Fix Patch
+|=====================================================
+### Bugs Fixed
+- Fixed #702, agents are unable to view their tickets
+- Fixed #701, turning off outgoing mails does not stop outgoing sending emails.
+- Fixed email edit/create page does not show proper error messages
+
+
+|=====================================================
+| v1.10.1 Laravel Framework update
+|=====================================================
+### PHP7.2 compatibility patch
+
+As we mentioned in the last release that the application is now compatible with PHP7.2 but as has not been tested completely there is the number of issues which occurred while using the application with PHP7.2. This release fixes the issues logged by the application in our issue track manager.
+
+#### Bugs fixed
+- PHP7.2 compatibility issues mentioned in this [GitHub issue](https://github.com/ladybirdweb/faveo-helpdesk/issues/681)
+- Agents are not able to view tickets in ticket pages
+- Delete Forever button does not work
+- Fixed logging method in CommonmailController
+- Fixed mail config file
+- Fixed attachment variable initialization in MailController
+- Fixed sendEmail() method in PhpMailController passing empty array as default value for $template_variables
+- Fixed Bugsnag reported an issue for sendmail() which is happening for reports
+- Changes status change URL method to post for preventing CSRF attacks for ticket status manipulation
+- Removed sla-escalate atrisan command from the kernel as the functionality is not working and which is causing the issue while running cron command in v1.10
+
+#### Changelog
+- Updated Laravel version to v5.6.38
+- Initial commit for Unit testing using PHP unit. We are starting with TDD and every module and class will be tested using unit test cases.
+- Updated Artful log in Readme.md, release notes and CLI installer
+- Added phpunit.bat for running unit tests on windows machines
+- Integrated slack channel for Travis build notifications
+- Updated Bugsnag API key
+
+Error Reporting
+--------------------------
+Faveo uses [Bugsnag](https://www.bugsnag.com/) to monitor application stability in the production environment. It helps us to provide bug fixes and feature updates after analyzing the logs and crash reports for the application. **If you are customizing the application under the development environment, we request you to disable this error reporting.** It will allow us to ignore the errors occurred during your development cycle and we can focus more on the exceptions/bugs occurring in the live system of other users of the Faveo community. It can be easily disabled from "Error logs and debugging" option in the admin panel or by updating your app environment to development in `.env`.
+
+You can still report the issues on our [Github Issue page](https://github.com/ladybirdweb/faveo-helpdesk/issues) by providing proper information about the changes you are trying to implement. We assure you that Faveo community will help you and your customization can be a part of Faveo application if it follows our contributing guidelines.
+
+|=====================================================
+| v1.10 Laravel Framework update
+|=====================================================
+Faveo helpdesk v1.10 introduces some backward non compatible changes due to framework updates and introduces some refinement patches for existing functionalities.
+
+* v1.10 updates the Laravel framework version to 5.6.33 requires php7.1.3 or greater version to run.
+* CLI commands for installation has been added.
+* Better language control access for users
+* Check for system email configuration
+* Email sending out department wise
+
+To know more please follow the links below
+https://github.com/ladybirdweb/faveo-helpdesk/releases
+https://github.com/ladybirdweb/faveo-helpdesk/wiki 
+
+|=====================================================
+| v1.9.6 Facebook login bug fix patch
+|=====================================================
+## Bug Fixed
+    Token parsing issue for Facebook which prevents users from login the system using Facebook oAuth API.
+
+|=====================================================
+| v1.9.5 (security hot fixt patch2)
+|=====================================================
+## Bug Fixed
+    Prevents execution of backdoor scripts
+    Prevents users from uploading PHP files into user's profile picture
+    Handling token mismatch error when the page is opened for too long and session gets expired
+
+|=====================================================
+| v1.9.4 (security hot fixt patch)
+|=====================================================
+## Bug Fixed
+    Github issue #446 regarding CSRF
+    Enabled CSRF token verification to prevent CSRF attacks
+
+
 |=====================================================
 | v1.9.3 (hot fix)
 |=====================================================

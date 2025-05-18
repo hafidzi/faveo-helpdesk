@@ -3,8 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
-class CreateWorkflowActionTable extends Migration
-{
+return new class() extends Migration {
     /**
      * Run the migrations.
      *
@@ -24,16 +23,16 @@ class CreateWorkflowActionTable extends Migration
         });
     }
 
-        /**
-         * Reverse the migrations.
-         *
-         * @return void
-         */
-        public function down()
-        {
-            Schema::drop('workflow_action');
-            Schema::table('workflow_action', function (Blueprint $table) {
-                $table->dropForeign('workflow_action_idfk_1');
-            });
-        }
-}
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::drop('workflow_action');
+        Schema::table('workflow_action', function (Blueprint $table) {
+            $table->dropForeign('workflow_action_idfk_1');
+        });
+    }
+};

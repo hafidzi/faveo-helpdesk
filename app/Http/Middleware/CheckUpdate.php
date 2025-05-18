@@ -49,15 +49,15 @@ class CheckUpdate
         $notify = new BarNotification();
         if (!\Schema::hasTable('bar_notifications')) {
             $url = url('database-upgrade');
-                //$string = "Your Database is outdated please upgrade <a href=$url>Now !</a>";
-                echo view('themes.default1.update.database', compact('url'));
+            //$string = "Your Database is outdated please upgrade <a href=$url>Now !</a>";
+            echo view('themes.default1.update.database', compact('url'));
             exit;
         }
         $not = $notify->get();
         if ($not->count() > 0) {
             $now = \Carbon\Carbon::now();
             $yesterday = \Carbon\Carbon::yesterday();
-            $notifications = $notify->whereBetween('created_at', [$yesterday, $now])->lists('value', 'key');
+            $notifications = $notify->whereBetween('created_at', [$yesterday, $now])->pluck('value', 'key');
             $todelete = $notify->where('created_at', '<', $yesterday)->get();
             if ($todelete->count() > 0) {
                 foreach ($todelete as $delete) {
@@ -114,7 +114,7 @@ class CheckUpdate
             if ($n) {
                 $now = \Carbon\Carbon::now();
                 $yesterday = \Carbon\Carbon::yesterday();
-                $notifications = $notify->where('key', 'new-version')->whereBetween('created_at', [$yesterday, $now])->lists('value', 'key');
+                $notifications = $notify->where('key', 'new-version')->whereBetween('created_at', [$yesterday, $now])->pluck('value', 'key');
                 if ($notifications->count() > 0) {
                     return false;
                 }

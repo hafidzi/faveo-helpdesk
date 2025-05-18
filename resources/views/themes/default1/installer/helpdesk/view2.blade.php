@@ -1,9 +1,5 @@
 @extends('themes.default1.installer.layout.installer')
 
-@section('license')
-done    
-@stop
-
 @section('environment')
 active
 @stop
@@ -11,7 +7,13 @@ active
 
 
 @section('content')
-
+<div id="no-js">
+   <noscript>
+        <meta http-equiv="refresh" content="0; URL=JavaScript-disabled">
+        <style type="text/css">#form-content {display: none;}</style>
+    </noscript>
+</div>
+    
 <div id="form-content">
 <center><h1>Environment Test</h1></center>
          @if (Session::has('fail_to_change'))
@@ -53,8 +55,8 @@ class TestResult {
      <?php
 
 function validate_php(&$results) {
-    if (version_compare(PHP_VERSION, '5.5') == -1) {
-        $results[] = new TestResult('Minimum PHP version required in order to run Faveo HELPDESK is PHP 5.5. Your PHP version: ' . PHP_VERSION, STATUS_ERROR);
+    if (version_compare(PHP_VERSION, '8.1') != 1) {
+        $results[] = new TestResult('PHP version required in order to run Faveo HELPDESK is PHP 7.1.* PHP version greater or lesser than 7.1 are not supported yet. Your PHP version: ' . PHP_VERSION, STATUS_ERROR);
         return false;
     } else {
         $results[] = new TestResult('Your PHP version is ' . PHP_VERSION, STATUS_OK);
@@ -73,7 +75,8 @@ function validate_php(&$results) {
  */
 function php_config_value_to_bytes($val) {
     $val = trim($val);
-    $last = strtolower($val{strlen($val) - 1});
+    $last = strtolower($val[strlen($val) - 1]);
+    $val = (integer)$val;
     switch ($last) {
         // The 'G' modifier is available since PHP 5.1.0
         case 'g':
@@ -140,12 +143,12 @@ function validate_memory_limit(&$results) {
  * @return string
  */
 function format_file_size($value) {
-    $data = array(
+    $data = [
         'TB' => 1099511627776,
         'GB' => 1073741824,
         'MB' => 1048576,
         'kb' => 1024,
-    );
+    ];
 
     // commented because of integer overflow on 32bit sistems
     // http://php.net/manual/en/language.types.integer.php#language.types.integer.overflow
@@ -178,7 +181,9 @@ function validate_zend_compatibility_mode(&$results) {
 function validate_extensions(&$results) {
     $ok = true;
 
-    $required_extensions = array('mcrypt', 'openssl', 'pdo', 'fileinfo', 'curl', 'zip', 'mbstring');
+    $required_extensions = ['curl', 'ctype', 'imap', 'mbstring',
+        'openssl', 'tokenizer', 'zip', 'pdo', 'mysqli', 'bcmath',
+       'iconv', 'xml', 'json'];
 
     foreach ($required_extensions as $required_extension) {
         if (extension_loaded($required_extension)) {
@@ -201,8 +206,9 @@ function validate_extensions(&$results) {
         $ok = false;
     } // if
 
-    $recommended_extensions = array(
-
+    $recommended_extensions = [
+        // 'imap' => 'IMAP extension is used for connecting to mail server using IMAP settings to fetch emails in the system.',
+        // 'mcrypt' => 'Optional extension',
         // 'gd' => 'GD is used for image manipulation. Without it, system is not able to create thumbnails for files or manage avatars, logos and project icons. Please refer to <a href="http://www.php.net/manual/en/image.installation.php">this</a> page for installation instructions',
         // 'mbstring' => 'MultiByte String is used for work with Unicode. Without it, system may not split words and string properly and you can have weird question mark characters in Recent Activities for example. Please refer to <a href="http://www.php.net/manual/en/mbstring.installation.php">this</a> page for installation instructions',
         // 'curl' => 'cURL is used to support various network tasks. Please refer to <a href="http://www.php.net/manual/en/curl.installation.php">this</a> page for installation instructions',
@@ -210,7 +216,7 @@ function validate_extensions(&$results) {
         // 'imap' => 'IMAP is used to connect to POP3 and IMAP servers. Without it, Incoming Mail module will not work. Please refer to <a href="http://www.php.net/manual/en/imap.installation.php">this</a> page for installation instructions',
         // 'zlib' => 'ZLIB is used to read and write gzip (.gz) compressed files',
         // SVN extension ommited, to avoid confusion
-    );
+    ];
 
     foreach ($recommended_extensions as $recommended_extension => $recommended_extension_desc) {
         if (extension_loaded($recommended_extension)) {
@@ -257,11 +263,12 @@ function checkMaxExecutiontime(&$results)
     }
     return $ok;
 }
+
 // ---------------------------------------------------
 //  Do the magic
 // ---------------------------------------------------
 
-$results = array();
+$results = [];
 
 $php_ok = validate_php($results);
 $memory_ok = validate_memory_limit($results);
@@ -288,7 +295,7 @@ if ($php_ok && $memory_ok && $extensions_ok && $file_permission && $required_fun
 
 
     <form action="{{URL::route('postprerequisites')}}" method="post"  class="border-line">
-        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+        {{ csrf_field() }}
         <p class="setup-actions step">
             <input type="submit" id="submitme" class="button-primary button button-large button-next" value="Continue">
             <a href="{!! route('licence') !!}" class="button button-large button-next" style="float: left">Previous</a>

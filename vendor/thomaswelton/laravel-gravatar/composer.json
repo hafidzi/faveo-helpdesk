@@ -22,7 +22,7 @@
    ],
    "require":{
       "php":">=5.4.0",
-      "illuminate/support":"~5.0",
+      "illuminate/support":"~5.0|^6.0|^7.0|^8.0|^9.0",
       "thomaswelton/gravatarlib":"0.1.x"
    },
    "require-dev":{
@@ -35,5 +35,15 @@
          "Thomaswelton\\Tests\\LaravelGravatar\\":"tests/"
       }
    },
+   "extra": {
+        "laravel": {
+            "providers": [
+                "Thomaswelton\\LaravelGravatar\\LaravelGravatarServiceProvider"
+            ],
+            "aliases": {
+                "Gravatar": "Thomaswelton\\LaravelGravatar\\Facades\\Gravatar"
+            }
+        }
+    },
    "minimum-stability":"stable"
 }

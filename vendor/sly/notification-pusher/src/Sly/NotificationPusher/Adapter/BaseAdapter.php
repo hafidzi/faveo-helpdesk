@@ -21,7 +21,7 @@ use Sly\NotificationPusher\PushManager;
  *
  * @author Cédric Dugat <cedric@dugat.me>
  */
-abstract class BaseAdapter extends BaseParameteredModel implements AdapterInterface
+abstract class BaseAdapter extends BaseParameteredModel
 {
     /**
      * @var string
@@ -43,10 +43,9 @@ abstract class BaseAdapter extends BaseParameteredModel implements AdapterInterf
      *
      * @param array $parameters Adapter specific parameters
      */
-    public function __construct(array $parameters = [])
+    public function __construct(array $parameters = array())
     {
         $resolver = new OptionsResolver();
-        $resolver->setDefined($this->getDefinedParameters());
         $resolver->setDefaults($this->getDefaultParameters());
         $resolver->setRequired($this->getRequiredParameters());
 
@@ -67,7 +66,7 @@ abstract class BaseAdapter extends BaseParameteredModel implements AdapterInterf
 
     /**
      * Return the original response.
-     *
+     * 
      * @return mixed
      */
     public function getResponse()

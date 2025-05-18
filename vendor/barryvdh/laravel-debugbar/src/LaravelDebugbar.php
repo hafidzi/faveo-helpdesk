@@ -1,35 +1,43 @@
-<?php namespace Barryvdh\Debugbar;
+<?php
+
+namespace Barryvdh\Debugbar;
 
 use Barryvdh\Debugbar\DataCollector\AuthCollector;
+use Barryvdh\Debugbar\DataCollector\CacheCollector;
 use Barryvdh\Debugbar\DataCollector\EventCollector;
 use Barryvdh\Debugbar\DataCollector\FilesCollector;
 use Barryvdh\Debugbar\DataCollector\GateCollector;
 use Barryvdh\Debugbar\DataCollector\LaravelCollector;
 use Barryvdh\Debugbar\DataCollector\LogsCollector;
+use Barryvdh\Debugbar\DataCollector\ModelsCollector;
 use Barryvdh\Debugbar\DataCollector\MultiAuthCollector;
 use Barryvdh\Debugbar\DataCollector\QueryCollector;
 use Barryvdh\Debugbar\DataCollector\SessionCollector;
-use Barryvdh\Debugbar\DataCollector\SymfonyRequestCollector;
+use Barryvdh\Debugbar\DataCollector\RequestCollector;
 use Barryvdh\Debugbar\DataCollector\ViewCollector;
+use Barryvdh\Debugbar\Storage\SocketStorage;
 use Barryvdh\Debugbar\Storage\FilesystemStorage;
 use DebugBar\Bridge\MonologCollector;
 use DebugBar\Bridge\SwiftMailer\SwiftLogCollector;
 use DebugBar\Bridge\SwiftMailer\SwiftMailCollector;
 use DebugBar\DataCollector\ConfigCollector;
+use DebugBar\DataCollector\DataCollectorInterface;
 use DebugBar\DataCollector\ExceptionsCollector;
 use DebugBar\DataCollector\MemoryCollector;
 use DebugBar\DataCollector\MessagesCollector;
-use DebugBar\DataCollector\PhpInfoCollector;
+use Barryvdh\Debugbar\DataCollector\PhpInfoCollector;
 use DebugBar\DataCollector\RequestDataCollector;
 use DebugBar\DataCollector\TimeDataCollector;
+use Barryvdh\Debugbar\DataFormatter\QueryFormatter;
 use Barryvdh\Debugbar\Support\Clockwork\ClockworkCollector;
 use DebugBar\DebugBar;
 use DebugBar\Storage\PdoStorage;
 use DebugBar\Storage\RedisStorage;
 use Exception;
-
+use Throwable;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Session\SessionManager;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -37,15 +45,15 @@ use Symfony\Component\HttpFoundation\Response;
  * Debug bar subclass which adds all without Request and with LaravelCollector.
  * Rest is added in Service Provider
  *
- * @method void emergency($message)
- * @method void alert($message)
- * @method void critical($message)
- * @method void error($message)
- * @method void warning($message)
- * @method void notice($message)
- * @method void info($message)
- * @method void debug($message)
- * @method void log($message)
+ * @method void emergency(...$message)
+ * @method void alert(...$message)
+ * @method void critical(...$message)
+ * @method void error(...$message)
+ * @method void warning(...$message)
+ * @method void notice(...$message)
+ * @method void info(...$message)
+ * @method void debug(...$message)
+ * @method void log(...$message)
  */
 class LaravelDebugbar extends DebugBar
 {
@@ -94,7 +102,7 @@ class LaravelDebugbar extends DebugBar
         }
         $this->app = $app;
         $this->version = $app->version();
-        $this->is_lumen = str_contains($this->version, 'Lumen');
+        $this->is_lumen = Str::contains($this->version, 'Lumen');
     }
 
     /**
@@ -124,6 +132,11 @@ class LaravelDebugbar extends DebugBar
         /** @var Application $app */
         $app = $this->app;
 
+        // Set custom error handler
+        if ($app['config']->get('debugbar.error_handler', false)) {
+            set_error_handler([$this, 'handleError']);
+        }
+
         $this->selectStorage($debugbar);
 
         if ($this->shouldCollect('phpinfo', true)) {
@@ -135,15 +148,13 @@ class LaravelDebugbar extends DebugBar
         }
 
         if ($this->shouldCollect('time', true)) {
-            $this->addCollector(new TimeDataCollector());
+            $startTime = $app['request']->server('REQUEST_TIME_FLOAT');
+            $this->addCollector(new TimeDataCollector($startTime));
 
-            if ( ! $this->isLumen()) {
+            if (! $this->isLumen() && $startTime) {
                 $this->app->booted(
-                    function () use ($debugbar) {
-                        $startTime = $this->app['request']->server('REQUEST_TIME_FLOAT');
-                        if ($startTime) {
-                            $debugbar['time']->addMeasure('Booting', $startTime, microtime(true));
-                        }
+                    function () use ($debugbar, $startTime) {
+                        $debugbar['time']->addMeasure('Booting', $startTime, microtime(true));
                     }
                 );
             }
@@ -180,7 +191,6 @@ class LaravelDebugbar extends DebugBar
                 $eventCollector = new EventCollector($startTime);
                 $this->addCollector($eventCollector);
                 $this->app['events']->subscribe($eventCollector);
-
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
@@ -195,17 +205,23 @@ class LaravelDebugbar extends DebugBar
         if ($this->shouldCollect('views', true) && isset($this->app['events'])) {
             try {
                 $collectData = $this->app['config']->get('debugbar.options.views.data', true);
-                $this->addCollector(new ViewCollector($collectData));
+                $excludePaths = $this->app['config']->get('debugbar.options.views.exclude_paths', []);
+                $this->addCollector(new ViewCollector($collectData, $excludePaths));
                 $this->app['events']->listen(
                     'composing:*',
-                    function ($view) use ($debugbar) {
+                    function ($view, $data = []) use ($debugbar) {
+                        if ($data) {
+                            $view = $data[0]; // For Laravel >= 5.4
+                        }
                         $debugbar['views']->addView($view);
                     }
                 );
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
-                        'Cannot add ViewCollector to Laravel Debugbar: ' . $e->getMessage(), $e->getCode(), $e
+                        'Cannot add ViewCollector to Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
                     )
                 );
             }
@@ -213,7 +229,7 @@ class LaravelDebugbar extends DebugBar
 
         if (!$this->isLumen() && $this->shouldCollect('route')) {
             try {
-                $this->addCollector($this->app->make('Barryvdh\Debugbar\DataCollector\IlluminateRouteCollector'));
+                $this->addCollector($this->app->make('Barryvdh\Debugbar\DataCollector\RouteCollector'));
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
@@ -231,11 +247,20 @@ class LaravelDebugbar extends DebugBar
                     $logger = new MessagesCollector('log');
                     $this['messages']->aggregate($logger);
                     $this->app['log']->listen(
-                        function ($level, $message, $context) use ($logger) {
+                        function ($level, $message = null, $context = null) use ($logger) {
+                            // Laravel 5.4 changed how the global log listeners are called. We must account for
+                            // the first argument being an "event object", where arguments are passed
+                            // via object properties, instead of individual arguments.
+                            if ($level instanceof \Illuminate\Log\Events\MessageLogged) {
+                                $message = $level->message;
+                                $context = $level->context;
+                                $level = $level->level;
+                            }
+
                             try {
                                 $logMessage = (string) $message;
                                 if (mb_check_encoding($logMessage, 'UTF-8')) {
-                                    $logMessage .= (!empty($context) ? ' ' . json_encode($context) : '');
+                                    $logMessage .= (!empty($context) ? ' ' . json_encode($context, JSON_PRETTY_PRINT) : '');
                                 } else {
                                     $logMessage = "[INVALID UTF-8 DATA]";
                                 }
@@ -250,12 +275,14 @@ class LaravelDebugbar extends DebugBar
                         }
                     );
                 } else {
-                    $this->addCollector(new MonologCollector($this->app['log']->getMonolog()));
+                    $this->addCollector(new MonologCollector($this->getMonologLogger()));
                 }
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
-                        'Cannot add LogsCollector to Laravel Debugbar: ' . $e->getMessage(), $e->getCode(), $e
+                        'Cannot add LogsCollector to Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
                     )
                 );
             }
@@ -263,7 +290,8 @@ class LaravelDebugbar extends DebugBar
 
         if ($this->shouldCollect('db', true) && isset($this->app['db'])) {
             $db = $this->app['db'];
-            if ($debugbar->hasCollector('time') && $this->app['config']->get(
+            if (
+                $debugbar->hasCollector('time') && $this->app['config']->get(
                     'debugbar.options.db.timeline',
                     false
                 )
@@ -274,13 +302,23 @@ class LaravelDebugbar extends DebugBar
             }
             $queryCollector = new QueryCollector($timeCollector);
 
+            $queryCollector->setDataFormatter(new QueryFormatter());
+
             if ($this->app['config']->get('debugbar.options.db.with_params')) {
                 $queryCollector->setRenderSqlWithParams(true);
             }
 
             if ($this->app['config']->get('debugbar.options.db.backtrace')) {
-                $queryCollector->setFindSource(true);
+                $middleware = ! $this->is_lumen ? $this->app['router']->getMiddleware() : [];
+                $queryCollector->setFindSource(true, $middleware);
             }
+
+            if ($this->app['config']->get('debugbar.options.db.backtrace_exclude_paths')) {
+                $excludePaths = $this->app['config']->get('debugbar.options.db.backtrace_exclude_paths');
+                $queryCollector->mergeBacktraceExcludePaths($excludePaths);
+            }
+
+            $queryCollector->setDurationBackground($this->app['config']->get('debugbar.options.db.duration_background'));
 
             if ($this->app['config']->get('debugbar.options.db.explain.enabled')) {
                 $types = $this->app['config']->get('debugbar.options.db.explain.types');
@@ -291,15 +329,30 @@ class LaravelDebugbar extends DebugBar
                 $queryCollector->setShowHints(true);
             }
 
+            if ($this->app['config']->get('debugbar.options.db.show_copy', false)) {
+                $queryCollector->setShowCopyButton(true);
+            }
+
             $this->addCollector($queryCollector);
 
             try {
                 $db->listen(
-                    function ($query, $bindings = null, $time = null, $connectionName = null) use ($db, $queryCollector) {
+                    function (
+                        $query,
+                        $bindings = null,
+                        $time = null,
+                        $connectionName = null
+                    ) use (
+                        $db,
+                        $queryCollector
+                    ) {
+                        if (!app(static::class)->shouldCollect('db', true)) {
+                            return; // Issue 776 : We've turned off collecting after the listener was attached
+                        }
                         // Laravel 5.2 changed the way some core events worked. We must account for
                         // the first argument being an "event object", where arguments are passed
                         // via object properties, instead of individual arguments.
-                        if ( $query instanceof \Illuminate\Database\Events\QueryExecuted ) {
+                        if ($query instanceof \Illuminate\Database\Events\QueryExecuted) {
                             $bindings = $query->bindings;
                             $time = $query->time;
                             $connection = $query->connection;
@@ -309,7 +362,11 @@ class LaravelDebugbar extends DebugBar
                             $connection = $db->connection($connectionName);
                         }
 
-                        $queryCollector->addQuery((string) $query, $bindings, $time, $connection);
+                        //allow collecting only queries slower than a specified amount of milliseconds
+                        $threshold = app('config')->get('debugbar.options.db.slow_threshold', false);
+                        if (!$threshold || $time > $threshold) {
+                            $queryCollector->addQuery((string)$query, $bindings, $time, $connection);
+                        }
                     }
                 );
             } catch (\Exception $e) {
@@ -321,13 +378,86 @@ class LaravelDebugbar extends DebugBar
                     )
                 );
             }
+
+            try {
+                $db->getEventDispatcher()->listen(
+                    \Illuminate\Database\Events\TransactionBeginning::class,
+                    function ($transaction) use ($queryCollector) {
+                        $queryCollector->collectTransactionEvent('Begin Transaction', $transaction->connection);
+                    }
+                );
+
+                $db->getEventDispatcher()->listen(
+                    \Illuminate\Database\Events\TransactionCommitted::class,
+                    function ($transaction) use ($queryCollector) {
+                        $queryCollector->collectTransactionEvent('Commit Transaction', $transaction->connection);
+                    }
+                );
+
+                $db->getEventDispatcher()->listen(
+                    \Illuminate\Database\Events\TransactionRolledBack::class,
+                    function ($transaction) use ($queryCollector) {
+                        $queryCollector->collectTransactionEvent('Rollback Transaction', $transaction->connection);
+                    }
+                );
+
+                $db->getEventDispatcher()->listen(
+                    'connection.*.beganTransaction',
+                    function ($event, $params) use ($queryCollector) {
+                        $queryCollector->collectTransactionEvent('Begin Transaction', $params[0]);
+                    }
+                );
+
+                $db->getEventDispatcher()->listen(
+                    'connection.*.committed',
+                    function ($event, $params) use ($queryCollector) {
+                        $queryCollector->collectTransactionEvent('Commit Transaction', $params[0]);
+                    }
+                );
+
+                $db->getEventDispatcher()->listen(
+                    'connection.*.rollingBack',
+                    function ($event, $params) use ($queryCollector) {
+                        $queryCollector->collectTransactionEvent('Rollback Transaction', $params[0]);
+                    }
+                );
+            } catch (\Exception $e) {
+                $this->addThrowable(
+                    new Exception(
+                        'Cannot add listen transactions to Queries for Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
+                    )
+                );
+            }
         }
 
-        if ($this->shouldCollect('mail', true) && class_exists('Illuminate\Mail\MailServiceProvider')) {
+        if ($this->shouldCollect('models', true)) {
+            try {
+                $modelsCollector = $this->app->make('Barryvdh\Debugbar\DataCollector\ModelsCollector');
+                $this->addCollector($modelsCollector);
+            } catch (\Exception $e) {
+                // No Models collector
+            }
+        }
+
+        if ($this->shouldCollect('livewire', true) && $this->app->bound('livewire')) {
+            try {
+                $livewireCollector = $this->app->make('Barryvdh\Debugbar\DataCollector\LivewireCollector');
+                $this->addCollector($livewireCollector);
+            } catch (\Exception $e) {
+                $this->addThrowable(
+                    new Exception('Cannot add Livewire Collector: ' . $e->getMessage(), $e->getCode(), $e)
+                );
+            }
+        }
+
+        if ($this->shouldCollect('mail', true) && class_exists('Illuminate\Mail\MailServiceProvider') && $this->checkVersion('9.0', '<')) {
             try {
                 $mailer = $this->app['mailer']->getSwiftMailer();
                 $this->addCollector(new SwiftMailCollector($mailer));
-                if ($this->app['config']->get('debugbar.options.mail.full_log') && $this->hasCollector(
+                if (
+                    $this->app['config']->get('debugbar.options.mail.full_log') && $this->hasCollector(
                         'messages'
                     )
                 ) {
@@ -336,7 +466,9 @@ class LaravelDebugbar extends DebugBar
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
-                        'Cannot add MailCollector to Laravel Debugbar: ' . $e->getMessage(), $e->getCode(), $e
+                        'Cannot add MailCollector to Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
                     )
                 );
             }
@@ -349,7 +481,9 @@ class LaravelDebugbar extends DebugBar
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
-                        'Cannot add LogsCollector to Laravel Debugbar: ' . $e->getMessage(), $e->getCode(), $e
+                        'Cannot add LogsCollector to Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
                     )
                 );
             }
@@ -360,13 +494,8 @@ class LaravelDebugbar extends DebugBar
 
         if ($this->shouldCollect('auth', false)) {
             try {
-                if($this->checkVersion('5.2')) {
-                    // fix for compatibility with Laravel 5.2.*
-                    $guards = array_keys($this->app['config']->get('auth.guards'));
-                    $authCollector = new MultiAuthCollector($app['auth'], $guards);
-                } else {
-                    $authCollector = new AuthCollector($app['auth']);
-                }
+                $guards = $this->app['config']->get('auth.guards', []);
+                $authCollector = new MultiAuthCollector($app['auth'], $guards);
 
                 $authCollector->setShowName(
                     $this->app['config']->get('debugbar.options.auth.show_name')
@@ -375,7 +504,9 @@ class LaravelDebugbar extends DebugBar
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
-                        'Cannot add AuthCollector to Laravel Debugbar: ' . $e->getMessage(), $e->getCode(), $e
+                        'Cannot add AuthCollector to Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
                     )
                 );
             }
@@ -385,13 +516,32 @@ class LaravelDebugbar extends DebugBar
             try {
                 $gateCollector = $this->app->make('Barryvdh\Debugbar\DataCollector\GateCollector');
                 $this->addCollector($gateCollector);
-            } catch (\Exception $e){
+            } catch (\Exception $e) {
                 // No Gate collector
+            }
+        }
+
+        if ($this->shouldCollect('cache', false) && isset($this->app['events'])) {
+            try {
+                $collectValues = $this->app['config']->get('debugbar.options.cache.values', true);
+                $startTime = $this->app['request']->server('REQUEST_TIME_FLOAT');
+                $cacheCollector = new CacheCollector($startTime, $collectValues);
+                $this->addCollector($cacheCollector);
+                $this->app['events']->subscribe($cacheCollector);
+            } catch (\Exception $e) {
+                $this->addThrowable(
+                    new Exception(
+                        'Cannot add CacheCollector to Laravel Debugbar: ' . $e->getMessage(),
+                        $e->getCode(),
+                        $e
+                    )
+                );
             }
         }
 
         $renderer = $this->getJavascriptRenderer();
         $renderer->setIncludeVendors($this->app['config']->get('debugbar.include_vendors', true));
+        $renderer->setBindAjaxHandlerToFetch($app['config']->get('debugbar.capture_ajax', true));
         $renderer->setBindAjaxHandlerToXHR($app['config']->get('debugbar.capture_ajax', true));
 
         $this->booted = true;
@@ -400,6 +550,44 @@ class LaravelDebugbar extends DebugBar
     public function shouldCollect($name, $default = false)
     {
         return $this->app['config']->get('debugbar.collectors.' . $name, $default);
+    }
+
+    /**
+     * Adds a data collector
+     *
+     * @param DataCollectorInterface $collector
+     *
+     * @throws DebugBarException
+     * @return $this
+     */
+    public function addCollector(DataCollectorInterface $collector)
+    {
+        parent::addCollector($collector);
+
+        if (method_exists($collector, 'useHtmlVarDumper')) {
+            $collector->useHtmlVarDumper();
+        }
+
+        return $this;
+    }
+
+    /**
+     * Handle silenced errors
+     *
+     * @param $level
+     * @param $message
+     * @param string $file
+     * @param int $line
+     * @param array $context
+     * @throws \ErrorException
+     */
+    public function handleError($level, $message, $file = '', $line = 0, $context = [])
+    {
+        if (error_reporting() & $level) {
+            throw new \ErrorException($message, 0, $level, $file, $line);
+        } else {
+            $this->addMessage($message, 'deprecation');
+        }
     }
 
     /**
@@ -449,7 +637,7 @@ class LaravelDebugbar extends DebugBar
     /**
      * Adds an exception to be profiled in the debug bar
      *
-     * @param Exception $e
+     * @param Throwable $e
      */
     public function addThrowable($e)
     {
@@ -485,7 +673,7 @@ class LaravelDebugbar extends DebugBar
     public function modifyResponse(Request $request, Response $response)
     {
         $app = $this->app;
-        if ($app->runningInConsole() || !$this->isEnabled() || $this->isDebugbarRequest()) {
+        if (!$this->isEnabled() || $this->isDebugbarRequest()) {
             return $response;
         }
 
@@ -510,7 +698,7 @@ class LaravelDebugbar extends DebugBar
             }
         }
 
-        if ($this->app->bound(SessionManager::class)){
+        if ($this->app->bound(SessionManager::class)) {
 
             /** @var \Illuminate\Session\SessionManager $sessionManager */
             $sessionManager = $app->make(SessionManager::class);
@@ -536,7 +724,8 @@ class LaravelDebugbar extends DebugBar
 
         if ($this->shouldCollect('symfony_request', true) && !$this->hasCollector('request')) {
             try {
-                $this->addCollector(new SymfonyRequestCollector($request, $response, $sessionManager));
+                $reqId = $this->getCurrentRequestId();
+                $this->addCollector(new RequestCollector($request, $response, $sessionManager, $reqId));
             } catch (\Exception $e) {
                 $this->addThrowable(
                     new Exception(
@@ -549,7 +738,6 @@ class LaravelDebugbar extends DebugBar
         }
 
         if ($app['config']->get('debugbar.clockwork') && ! $this->hasCollector('clockwork')) {
-
             try {
                 $this->addCollector(new ClockworkCollector($request, $response, $sessionManager));
             } catch (\Exception $e) {
@@ -577,13 +765,19 @@ class LaravelDebugbar extends DebugBar
         ) {
             try {
                 $this->sendDataInHeaders(true);
+
+                if ($app['config']->get('debugbar.add_ajax_timing', false)) {
+                    $this->addServerTimingHeaders($response);
+                }
             } catch (\Exception $e) {
                 $app['log']->error('Debugbar exception: ' . $e->getMessage());
             }
         } elseif (
             ($response->headers->has('Content-Type') &&
-                strpos($response->headers->get('Content-Type'), 'html') === false)
-            || $request->getRequestFormat() !== 'html'
+                strpos($response->headers->get('Content-Type'), 'html') === false) ||
+            $request->getRequestFormat() !== 'html' ||
+            $response->getContent() === false ||
+            $this->isJsonRequest($request)
         ) {
             try {
                 // Just collect + store data, don't inject it.
@@ -599,6 +793,8 @@ class LaravelDebugbar extends DebugBar
             }
         }
 
+
+
         return $response;
     }
 
@@ -609,7 +805,14 @@ class LaravelDebugbar extends DebugBar
     public function isEnabled()
     {
         if ($this->enabled === null) {
-            $this->enabled = value($this->app['config']->get('debugbar.enabled'));
+            $config = $this->app['config'];
+            $configEnabled = value($config->get('debugbar.enabled'));
+
+            if ($configEnabled === null) {
+                $configEnabled = $config->get('app.debug');
+            }
+
+            $this->enabled = $configEnabled && !$this->app->runningInConsole() && !$this->app->environment('testing');
         }
 
         return $this->enabled;
@@ -622,7 +825,7 @@ class LaravelDebugbar extends DebugBar
      */
     protected function isDebugbarRequest()
     {
-        return $this->app['request']->segment(1) == '_debugbar';
+        return $this->app['request']->segment(1) == $this->app['config']->get('debugbar.route_prefix');
     }
 
     /**
@@ -631,8 +834,8 @@ class LaravelDebugbar extends DebugBar
      */
     protected function isJsonRequest(Request $request)
     {
-        // If XmlHttpRequest, return true
-        if ($request->isXmlHttpRequest()) {
+        // If XmlHttpRequest or Live, return true
+        if ($request->isXmlHttpRequest() || $request->headers->get('X-Livewire')) {
             return true;
         }
 
@@ -699,18 +902,39 @@ class LaravelDebugbar extends DebugBar
             $renderer->setOpenHandlerUrl($openHandlerUrl);
         }
 
-        $renderedContent = $renderer->renderHead() . $renderer->render();
+        $head = $renderer->renderHead();
+        $widget = $renderer->render();
 
+        // Try to put the js/css directly before the </head>
+        $pos = strripos($content, '</head>');
+        if (false !== $pos) {
+            $content = substr($content, 0, $pos) . $head . substr($content, $pos);
+        } else {
+            // Append the head before the widget
+            $widget = $head . $widget;
+        }
+
+        // Try to put the widget at the end, directly before the </body>
         $pos = strripos($content, '</body>');
         if (false !== $pos) {
-            $content = substr($content, 0, $pos) . $renderedContent . substr($content, $pos);
+            $content = substr($content, 0, $pos) . $widget . substr($content, $pos);
         } else {
-            $content = $content . $renderedContent;
+            $content = $content . $widget;
+        }
+
+        $original = null;
+        if ($response instanceof \Illuminate\Http\Response && $response->getOriginalContent()) {
+            $original = $response->getOriginalContent();
         }
 
         // Update the new content and reset the content length
         $response->setContent($content);
         $response->headers->remove('Content-Length');
+
+        // Restore original response (eg. the View or Ajax data)
+        if ($original) {
+            $response->original = $original;
+        }
     }
 
     /**
@@ -742,16 +966,18 @@ class LaravelDebugbar extends DebugBar
      *
      * @param string $label
      * @param \Closure $closure
+     * @return mixed
      */
     public function measure($label, \Closure $closure)
     {
         if ($this->hasCollector('time')) {
             /** @var \DebugBar\DataCollector\TimeDataCollector $collector */
             $collector = $this->getCollector('time');
-            $collector->measure($label, $closure);
+            $result = $collector->measure($label, $closure);
         } else {
-            $closure();
+            $result = $closure();
         }
+        return $result;
     }
 
     /**
@@ -808,7 +1034,7 @@ class LaravelDebugbar extends DebugBar
     {
         $messageLevels = ['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log'];
         if (in_array($method, $messageLevels)) {
-            foreach($args as $arg) {
+            foreach ($args as $arg) {
                 $this->addMessage($arg, $method);
             }
         }
@@ -866,11 +1092,20 @@ class LaravelDebugbar extends DebugBar
                     break;
                 case 'redis':
                     $connection = $config->get('debugbar.storage.connection');
-                    $storage = new RedisStorage($this->app['redis']->connection($connection));
+                    $client = $this->app['redis']->connection($connection);
+                    if (is_a($client, 'Illuminate\Redis\Connections\Connection', false)) {
+                        $client = $client->client();
+                    }
+                    $storage = new RedisStorage($client);
                     break;
                 case 'custom':
                     $class = $config->get('debugbar.storage.provider');
                     $storage = $this->app->make($class);
+                    break;
+                case 'socket':
+                    $hostname = $config->get('debugbar.storage.hostname', '127.0.0.1');
+                    $port = $config->get('debugbar.storage.port', 2304);
+                    $storage = new SocketStorage($hostname, $port);
                     break;
                 case 'file':
                 default:
@@ -888,6 +1123,46 @@ class LaravelDebugbar extends DebugBar
         $prefix = $this->app['config']->get('debugbar.route_prefix');
         $response->headers->set('X-Clockwork-Id', $this->getCurrentRequestId(), true);
         $response->headers->set('X-Clockwork-Version', 1, true);
-        $response->headers->set('X-Clockwork-Path', $prefix .'/clockwork/', true);
+        $response->headers->set('X-Clockwork-Path', $prefix . '/clockwork/', true);
+    }
+
+    /**
+     * Add Server-Timing headers for the TimeData collector
+     *
+     * @see https://www.w3.org/TR/server-timing/
+     * @param Response $response
+     */
+    protected function addServerTimingHeaders(Response $response)
+    {
+        if ($this->hasCollector('time')) {
+            $collector = $this->getCollector('time');
+
+            $headers = [];
+            foreach ($collector->collect()['measures'] as $k => $m) {
+                $headers[] = sprintf('app;desc="%s";dur=%F', str_replace(array("\n", "\r"), ' ', str_replace('"', "'", $m['label'])), $m['duration'] * 1000);
+            }
+
+            $response->headers->set('Server-Timing', $headers, false);
+        }
+    }
+
+    /**
+     * @return \Monolog\Logger
+     * @throws Exception
+     */
+    private function getMonologLogger()
+    {
+        // The logging was refactored in Laravel 5.6
+        if ($this->checkVersion('5.6')) {
+            $logger = $this->app['log']->getLogger();
+        } else {
+            $logger = $this->app['log']->getMonolog();
+        }
+
+        if (get_class($logger) !== 'Monolog\Logger') {
+            throw new Exception('Logger is not a Monolog\Logger instance');
+        }
+
+        return $logger;
     }
 }

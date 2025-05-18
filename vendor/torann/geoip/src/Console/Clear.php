@@ -21,7 +21,19 @@ class Clear extends Command
     protected $description = 'Clear GeoIP cached locations.';
 
     /**
+     * Execute the console command for Laravel 5.5 and newer.
+     *
+     * @return void
+     */
+    public function handle()
+    {
+        $this->fire();
+    }
+
+    /**
      * Execute the console command.
+     *
+     * @return void
      */
     public function fire()
     {

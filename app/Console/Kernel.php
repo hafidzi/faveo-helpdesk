@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Console\Commands\SyncFaveoToLatestVersion;
 use App\Model\MailJob\Condition;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -14,10 +15,17 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        'App\Console\Commands\Inspire',
-        'App\Console\Commands\SendReport',
-        'App\Console\Commands\CloseWork',
-        'App\Console\Commands\TicketFetch',
+        \App\Console\Commands\Inspire::class,
+        \App\Console\Commands\SendReport::class,
+        \App\Console\Commands\CloseWork::class,
+        \App\Console\Commands\TicketFetch::class,
+        \App\Console\Commands\UpdateEncryption::class,
+        \App\Console\Commands\DropTables::class,
+        \App\Console\Commands\Install::class,
+        \App\Console\Commands\InstallDB::class,
+        \App\Console\Commands\SetupTestEnv::class,
+        \App\Console\Commands\SecureFaveoAPPKey::class,
+        SyncFaveoToLatestVersion::class,
     ];
 
     /**
@@ -29,13 +37,13 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        if (env('DB_INSTALL') == 1) {
-            if ($this->getCurrentQueue() != 'sync') {
-                $schedule->command('queue:listen '.$this->getCurrentQueue().' --sleep 60')->everyMinute();
-            }
+        if (isInstall()) {
             $this->execute($schedule, 'fetching');
             $this->execute($schedule, 'notification');
             $this->execute($schedule, 'work');
+            if ($this->getCurrentQueue() != 'sync') {
+                $schedule->command('queue:listen '.$this->getCurrentQueue().' --sleep 60')->everyMinute();
+            }
         }
     }
 
@@ -113,5 +121,15 @@ class Kernel extends ConsoleKernel
         }
 
         return $queue;
+    }
+
+    /**
+     * Register the Closure based commands for the application.
+     *
+     * @return void
+     */
+    protected function commands()
+    {
+        require base_path('routes/console.php');
     }
 }

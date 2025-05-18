@@ -36,6 +36,7 @@ class IPApi extends AbstractService
             ],
             'query' => [
                 'fields' => 49663,
+                'lang' => $this->config('lang', ['en']),
             ],
         ];
 
@@ -97,7 +98,7 @@ class IPApi extends AbstractService
      */
     public function update()
     {
-        $data = $this->client->get('http://dev.maxmind.com/static/csv/codes/country_continent.csv');
+        $data = $this->client->get('https://dev.maxmind.com/static/csv/codes/country_continent.csv');
 
         // Verify server response
         if ($this->client->getErrors() !== null) {

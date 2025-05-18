@@ -10,9 +10,10 @@ interface FailedJobProviderInterface
      * @param  string  $connection
      * @param  string  $queue
      * @param  string  $payload
-     * @return int|null
+     * @param  \Throwable  $exception
+     * @return string|int|null
      */
-    public function log($connection, $queue, $payload);
+    public function log($connection, $queue, $payload, $exception);
 
     /**
      * Get a list of all of the failed jobs.
@@ -25,7 +26,7 @@ interface FailedJobProviderInterface
      * Get a single failed job.
      *
      * @param  mixed  $id
-     * @return array
+     * @return object|null
      */
     public function find($id);
 
@@ -40,7 +41,8 @@ interface FailedJobProviderInterface
     /**
      * Flush all of the failed jobs from storage.
      *
+     * @param  int|null  $hours
      * @return void
      */
-    public function flush();
+    public function flush($hours = null);
 }

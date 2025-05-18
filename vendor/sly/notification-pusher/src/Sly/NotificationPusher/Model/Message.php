@@ -29,7 +29,7 @@ class Message extends BaseOptionedModel implements MessageInterface
      * @param string $text    Text
      * @param array  $options Options
      */
-    public function __construct($text, array $options = [])
+    public function __construct($text, array $options = array())
     {
         $this->text    = $text;
         $this->options = $options;

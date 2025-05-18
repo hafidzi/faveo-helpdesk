@@ -148,16 +148,21 @@ class MimeType extends AbstractValidator
                 return $this->options['magicFile'];
             }
 
-            foreach ($this->magicFiles as $file) {
-                try {
-                    $this->setMagicFile($file);
-                } catch (Exception\ExceptionInterface $e) {
-                    // suppressing errors which are thrown due to open_basedir restrictions
-                    continue;
-                }
+            ErrorHandler::start();
+            $safeMode = ini_get('safe_mode');
+            ErrorHandler::stop();
 
-                if ($this->options['magicFile'] !== null) {
-                    return $this->options['magicFile'];
+            if (!($safeMode == 'On' || $safeMode === 1)) {
+                foreach ($this->magicFiles as $file) {
+                    // suppressing errors which are thrown due to openbase_dir restrictions
+                    try {
+                        $this->setMagicFile($file);
+                        if ($this->options['magicFile'] !== null) {
+                            break;
+                        }
+                    } catch (Exception\ExceptionInterface $e) {
+                        // Intentionally, catch and fall through
+                    }
                 }
             }
 

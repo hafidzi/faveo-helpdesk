@@ -2,8 +2,7 @@
 
 namespace Illuminate\Validation;
 
-use Illuminate\Contracts\Validation\UnauthorizedException;
-use Illuminate\Contracts\Validation\ValidationException as ValidationExceptionContract;
+use Illuminate\Foundation\Precognition;
 
 /**
  * Provides default implementation of ValidatesWhenResolved contract.
@@ -15,15 +14,35 @@ trait ValidatesWhenResolvedTrait
      *
      * @return void
      */
-    public function validate()
+    public function validateResolved()
     {
-        $instance = $this->getValidatorInstance();
+        $this->prepareForValidation();
 
         if (! $this->passesAuthorization()) {
             $this->failedAuthorization();
-        } elseif (! $instance->passes()) {
+        }
+
+        $instance = $this->getValidatorInstance();
+
+        if ($this->isPrecognitive()) {
+            $instance->after(Precognition::afterValidationHook($this));
+        }
+
+        if ($instance->fails()) {
             $this->failedValidation($instance);
         }
+
+        $this->passedValidation();
+    }
+
+    /**
+     * Prepare the data for validation.
+     *
+     * @return void
+     */
+    protected function prepareForValidation()
+    {
+        //
     }
 
     /**
@@ -37,16 +56,26 @@ trait ValidatesWhenResolvedTrait
     }
 
     /**
+     * Handle a passed validation attempt.
+     *
+     * @return void
+     */
+    protected function passedValidation()
+    {
+        //
+    }
+
+    /**
      * Handle a failed validation attempt.
      *
      * @param  \Illuminate\Validation\Validator  $validator
      * @return void
      *
-     * @throws \Illuminate\Contracts\Validation\ValidationException
+     * @throws \Illuminate\Validation\ValidationException
      */
     protected function failedValidation(Validator $validator)
     {
-        throw new ValidationExceptionContract($validator);
+        throw new ValidationException($validator);
     }
 
     /**
@@ -68,7 +97,7 @@ trait ValidatesWhenResolvedTrait
      *
      * @return void
      *
-     * @throws \Illuminate\Contracts\Validation\UnauthorizedException
+     * @throws \Illuminate\Validation\UnauthorizedException
      */
     protected function failedAuthorization()
     {

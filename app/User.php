@@ -7,11 +7,12 @@ use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Model;
+use Tymon\JWTAuth\Contracts\JWTSubject as AuthenticatableUserContract;
 
-class User extends Model implements AuthenticatableContract, CanResetPasswordContract
+class User extends Model implements AuthenticatableContract, CanResetPasswordContract, AuthenticatableUserContract
 {
-    use Authenticatable,
-        CanResetPassword;
+    use Authenticatable;
+    use CanResetPassword;
 
     /**
      * The database table used by the model.
@@ -44,8 +45,14 @@ class User extends Model implements AuthenticatableContract, CanResetPasswordCon
         if ($info) {
             $pic = $this->checkArray('avatar', $info);
         }
-        if (!$pic) {
-            $pic = asset('uploads/profilepic/'.$value);
+        if (!$pic && $value) {
+            $pic = '';
+            $file = public_path('uploads/profilepic/'.$value);
+            if ($file && file_exists($file)) {
+                $type = pathinfo($file, PATHINFO_EXTENSION);
+                $data = file_get_contents($file);
+                $pic = 'data:image/'.$type.';base64,'.base64_encode($data);
+            }
         }
         if (!$value) {
             $pic = \Gravatar::src($this->attributes['email']);
@@ -56,7 +63,7 @@ class User extends Model implements AuthenticatableContract, CanResetPasswordCon
 
     public function avatar()
     {
-        $related = 'App\UserAdditionalInfo';
+        $related = \App\UserAdditionalInfo::class;
         $foreignKey = 'owner';
 
         return $this->hasMany($related, $foreignKey)->select('value')->where('key', 'avatar')->first();
@@ -64,7 +71,7 @@ class User extends Model implements AuthenticatableContract, CanResetPasswordCon
 
     public function getOrganizationRelation()
     {
-        $related = "App\Model\helpdesk\Agent_panel\User_org";
+        $related = \App\Model\helpdesk\Agent_panel\User_org::class;
         $user_relation = $this->hasMany($related, 'user_id');
         $relation = $user_relation->first();
         if ($relation) {
@@ -119,7 +126,7 @@ class User extends Model implements AuthenticatableContract, CanResetPasswordCon
             $id = $this->attributes['id'];
         }
         $info = new UserAdditionalInfo();
-        $infos = $info->where('owner', $id)->lists('value', 'key')->toArray();
+        $infos = $info->where('owner', $id)->pluck('value', 'key')->toArray();
 
         return $infos;
     }
@@ -169,13 +176,53 @@ class User extends Model implements AuthenticatableContract, CanResetPasswordCon
         return $this->name();
     }
 
-//    public function save() {
-//        dd($this->id);
-//        parent::save();
-//    }
+    public function getFirstNameAttribute($value)
+    {
+        return strip_tags($value);
+    }
 
-//    public function save(array $options = array()) {
-//        parent::save($options);
-//        dd($this->where('id',$this->id)->select('first_name','last_name','user_name','email')->get()->toJson());
-//    }
+    public function getLastNameAttribute($value)
+    {
+        return strip_tags($value);
+    }
+
+    public function getUserNameAttribute($value)
+    {
+        return strip_tags($value);
+    }
+
+    public function setFirstNameAttribute($value)
+    {
+        $this->attributes['first_name'] = strip_tags($value);
+    }
+
+    public function setLastNameAttribute($value)
+    {
+        $this->attributes['last_name'] = strip_tags($value);
+    }
+
+    public function setUserNameAttribute($value)
+    {
+        $this->attributes['user_name'] = strip_tags($value);
+    }
+
+    /**
+     * Get the identifier that will be stored in the subject claim of the JWT.
+     *
+     * @return mixed
+     */
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    /**
+     * Return a key value array, containing any custom claims to be added to the JWT.
+     *
+     * @return array
+     */
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
 }

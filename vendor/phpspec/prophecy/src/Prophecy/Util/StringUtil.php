@@ -20,6 +20,16 @@ use Prophecy\Call\Call;
  */
 class StringUtil
 {
+    private $verbose;
+
+    /**
+     * @param bool $verbose
+     */
+    public function __construct($verbose = true)
+    {
+        $this->verbose = $verbose;
+    }
+
     /**
      * Stringifies any provided value.
      *
@@ -46,7 +56,7 @@ class StringUtil
             return get_resource_type($value).':'.$value;
         }
         if (is_object($value)) {
-            return $exportObject ? ExportUtil::export($value) : sprintf('%s:%s', get_class($value), spl_object_hash($value));
+            return $exportObject ? ExportUtil::export($value) : sprintf('%s#%s', get_class($value), spl_object_id($value));
         }
         if (true === $value || false === $value) {
             return $value ? 'true' : 'false';
@@ -54,7 +64,7 @@ class StringUtil
         if (is_string($value)) {
             $str = sprintf('"%s"', str_replace("\n", '\\n', $value));
 
-            if (50 <= strlen($str)) {
+            if (!$this->verbose && 50 <= strlen($str)) {
                 return substr($str, 0, 50).'"...';
             }
 

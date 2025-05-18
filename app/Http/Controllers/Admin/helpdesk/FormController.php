@@ -4,16 +4,17 @@ namespace App\Http\Controllers\Admin\helpdesk;
 
 // Controller
 use App\Http\Controllers\Controller;
-// Model
 use App\Model\helpdesk\Form\Fields;
+// Model
 use App\Model\helpdesk\Form\Forms;
 use App\Model\helpdesk\Manage\Help_topic;
-// Request
 use Exception;
-// Class
+// Request
 use Form;
+// Class
 use Illuminate\Http\Request;
-use Input;
+use Illuminate\Support\Facades\Request as Input;
+use Illuminate\Support\Str;
 use Lang;
 use Redirect;
 
@@ -26,6 +27,7 @@ use Redirect;
 class FormController extends Controller
 {
     private $fields;
+
     private $forms;
 
     public function __construct(Fields $fields, Forms $forms)
@@ -106,6 +108,7 @@ class FormController extends Controller
 
                 return view('themes.default1.admin.helpdesk.manage.form.preview', compact('form', 'fields'));
             }
+
             throw new Exception("Sorry we can't find your request");
         } catch (Exception $ex) {
             return redirect()->back()->with('fails', $ex->getMessage());
@@ -125,6 +128,7 @@ class FormController extends Controller
             'name.*'   => 'required',
             'type.*'   => 'required',
         ]);
+
         try {
             $forms = new Forms();
             $require = Input::get('required');
@@ -135,13 +139,13 @@ class FormController extends Controller
             $fields = [];
             for ($i = 0; $i <= $count; $i++) {
                 if (!empty(Input::get('name')[$i])) {
-                    $name = str_slug(Input::get('name')[$i], '_');
+                    $name = Str::slug(Input::get('name')[$i], '_');
                     $field = Fields::create([
-                                'forms_id' => $forms->id,
-                                'label'    => Input::get('label')[$i],
-                                'name'     => $name,
-                                'type'     => Input::get('type')[$i],
-                                'required' => $require[$i],
+                        'forms_id' => $forms->id,
+                        'label'    => Input::get('label')[$i],
+                        'name'     => $name,
+                        'type'     => Input::get('type')[$i],
+                        'required' => $require[$i],
                     ]);
                     $field_id = $field->id;
                     $this->createValues($field_id, Input::get('value')[$i], null, $name);
@@ -188,13 +192,14 @@ class FormController extends Controller
         try {
             $forms = new Forms();
             $form = $forms->find($id);
-            $select_forms = $forms->where('id', '!=', $id)->lists('formname', 'id')->toArray();
+            $select_forms = $forms->where('id', '!=', $id)->pluck('formname', 'id')->toArray();
             //dd($form);
             if ($form) {
                 $fields = $form->fields();
                 //dd($fields);
                 return view('themes.default1.admin.helpdesk.manage.form.edit', compact('form', 'fields', 'select_forms'));
             }
+
             throw new Exception("Sorry we can't find your request");
         } catch (Exception $ex) {
             return redirect()->back()->with('fails', $ex->getMessage());
@@ -206,13 +211,14 @@ class FormController extends Controller
         try {
             $forms = new Forms();
             $form = $forms->find($id);
-            $select_forms = $forms->where('id', '!=', $id)->lists('formname', 'id')->toArray();
+            $select_forms = $forms->where('id', '!=', $id)->pluck('formname', 'id')->toArray();
             //dd($form);
             if ($form) {
                 $fields = $form->fields();
                 //dd($fields);
                 return view('themes.default1.admin.helpdesk.manage.form.add-child', compact('form', 'fields', 'select_forms'));
             }
+
             throw new Exception("Sorry we can't find your request");
         } catch (Exception $ex) {
             return redirect()->back()->with('fails', $ex->getMessage());
@@ -227,6 +233,7 @@ class FormController extends Controller
             'name.*'   => 'required',
             'type.*'   => 'required',
         ]);
+
         try {
             if (!$request->input('formname')) {
                 throw new Exception(Lang::get('lang.please_fill_form_name'));
@@ -248,7 +255,7 @@ class FormController extends Controller
             }
             //dd(Input::get('label'),Input::get('name'),Input::get('type'),Input::get('required'));
             for ($i = 0; $i < $count; $i++) {
-                $name = str_slug(Input::get('name')[$i], '_');
+                $name = Str::slug(Input::get('name')[$i], '_');
                 $field = $field->create([
                     'forms_id' => $forms->id,
                     'label'    => Input::get('label')[$i],
@@ -381,7 +388,7 @@ class FormController extends Controller
                         'field_id'    => $fieldid,
                         'child_id'    => $childid,
                         'field_key'   => $key,
-                        'field_value' => str_slug($value, '_'),
+                        'field_value' => Str::slug($value, '_'),
                     ]);
                 }
             }
@@ -391,6 +398,7 @@ class FormController extends Controller
     public function addChild($fieldid, Request $request)
     {
         $ids = $request->except('_token');
+
         try {
             foreach ($ids as $valueid => $formid) {
                 $field_value = new \App\Model\helpdesk\Form\FieldValue();
@@ -439,22 +447,22 @@ class FormController extends Controller
         }
 
         return '<script>
-            $("#'.str_slug($value).'").on("change", function () {
-                var valueid = $("#'.str_slug($value).'").val();
-                var fieldid = $("#'.$fieldid.str_slug($value).'").val();
-                send'.$fieldid.str_slug($value).'(valueid,fieldid);
-            });
-            function send'.$fieldid.str_slug($value).'(valueid,fieldid) {
-                $.ajax({
-                    url: "'.url('forms/render/child/').'",
-                    dataType: "html",
-                    data: {"valueid": valueid,"fieldid": fieldid},
-                    success: function (response) {
-                        $("#'.$fieldname.'").html(response);
-                    },
-                    error: function (response) {
-                        $("#'.$fieldname.'").html(response);
-                    }
+             $(".'.Str::slug($fieldname).'-'.Str::slug($value).'").on("change", function () {
+            var valueid = $(this).val();
+            var fieldid = $("#'.$fieldid.Str::slug($value).'").val();
+            send'.$fieldid.Str::slug($value).'(valueid,fieldid);
+        });
+        function send'.$fieldid.Str::slug($value).'(valueid,fieldid) {
+            $.ajax({
+                url: "'.url('forms/render/child/').'",
+                dataType: "html",
+                data: {"valueid": valueid,"fieldid": fieldid},
+                success: function (response) {
+                    $("#'.$fieldname.'").html(response);
+                },
+                error: function (response) {
+                    $("#'.$fieldname.'").html(response);
+                }
                 });
             }
         </script>';
@@ -533,9 +541,9 @@ class FormController extends Controller
     public static function selectForm($field_type, $field, $required, $required_class)
     {
         $session = self::getSession();
-        $script = self::jqueryScript($field_value = '', $field->id, $field->name, $field_type);
+        $script = self::jqueryScript($field->id, $field->name, $field_type);
         $form_hidden = Form::hidden('fieldid[]', $field->id, ['id' => 'hidden'.$session.$field->id]).Form::label($field->label, $field->label, ['class' => $required_class]);
-        $select = Form::$field_type($field->name, ['' => 'Select', 'Selects' => self::removeUnderscoreFromDB($field->values()->lists('field_value', 'field_value')->toArray())], null, ['class' => "form-control $session$field->id", 'id' => $session.$field->id, 'required' => $required]).'</br>';
+        $select = Form::$field_type($field->name, ['' => 'Select', 'Selects' => self::removeUnderscoreFromDB($field->values()->pluck('field_value', 'field_value')->toArray())], null, ['class' => "form-control $session$field->id", 'id' => $session.$field->id, 'required' => $required]).'</br>';
         $html = $script.$form_hidden.$select;
         $response_div = '<div id='.$session.$field->name.'></div>';
 
@@ -546,12 +554,12 @@ class FormController extends Controller
     {
         $radio = '';
         $html = '';
-        $values = $field->values()->lists('field_value')->toArray();
+        $values = $field->values()->pluck('field_value')->toArray();
         if (count($values) > 0) {
             foreach ($values as $field_value) {
                 $script = self::jqueryScript($field_value, $field->id, $field->name, $field_type);
-                $radio .= '<div>'.Form::hidden('fieldid[]', $field->id, ['id' => $field->id.str_slug($field_value)]);
-                $radio .= Form::$field_type($field->name, $field_value, null, ['class' => "$field->id", 'id' => str_slug($field_value), 'required' => $required]).$script.'<span>   '.removeUnderscore($field_value).'</span></div>';
+                $radio .= '<div>'.Form::hidden('fieldid[]', $field->id, ['id' => $field->id.Str::slug($field_value)]);
+                $radio .= Form::$field_type($field->name, $field_value, null, ['class' => "$field->id", 'id' => Str::slug($field_value), 'required' => $required]).$script.'<span>   '.removeUnderscore($field_value).'</span></div>';
             }
             $html = Form::label($field->label, $field->label, ['class' => $required_class]).'</br>'.$radio.'<div id='.$field->name.'></br></div>';
         }
@@ -564,13 +572,13 @@ class FormController extends Controller
         $session = self::getSession();
         $checkbox = '';
         $html = '';
-        $values = $field->values()->lists('field_value')->toArray();
+        $values = $field->values()->pluck('field_value')->toArray();
         if (count($values) > 0) {
             $i = 1;
             foreach ($values as $field_value) {
                 $script = self::jqueryScript($field_value, $field->id, $field->name, $field_type, $i);
                 $checkbox .= Form::hidden('fieldid[]', $field->id, ['id' => 'f'.$session.$i]);
-                $checkbox .= Form::$field_type($field->name, $field_value, null, ['class' => "$field->id", 'id' => $session.$i, 'required' => $required]);
+                $checkbox .= Form::$field_type($field->name, $field_value, null, ['class' => "$field->id", 'id' => $session.$field->id.'_'.$i, 'required' => $required]);
                 $checkbox .= '<span>   '.removeUnderscore($field_value).'</span>';
                 //$checkbox .="</br>";
                 $checkbox .= '<div>'.$script.'<div id=div'.$session.$field_value.'></div></div>';
@@ -609,7 +617,7 @@ class FormController extends Controller
     {
         $form = self::getSession();
         $form++;
-        \Session::set('fromid', $form);
+        \Session::put('fromid', $form);
     }
 
     public static function getSession()

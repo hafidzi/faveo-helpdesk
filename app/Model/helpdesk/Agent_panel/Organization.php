@@ -15,14 +15,14 @@ class Organization extends BaseModel
 
     public function userRelation()
     {
-        $related = "App\Model\helpdesk\Agent_panel\User_org";
+        $related = \App\Model\helpdesk\Agent_panel\User_org::class;
 
         return $this->hasMany($related, 'org_id');
     }
 
     public function getUserIds()
     {
-        $user_relations = $this->userRelation()->lists('user_id')->toArray();
+        $user_relations = $this->userRelation()->pluck('user_id')->toArray();
 
         return $user_relations;
     }

@@ -11,8 +11,6 @@ namespace Zend\Validator\Db;
 
 use Traversable;
 use Zend\Db\Adapter\Adapter as DbAdapter;
-use Zend\Db\Adapter\AdapterAwareInterface;
-use Zend\Db\Adapter\AdapterAwareTrait;
 use Zend\Db\Sql\Select;
 use Zend\Db\Sql\Sql;
 use Zend\Db\Sql\TableIdentifier;
@@ -23,10 +21,8 @@ use Zend\Validator\Exception;
 /**
  * Class for Database record validation
  */
-abstract class AbstractDb extends AbstractValidator implements AdapterAwareInterface
+abstract class AbstractDb extends AbstractValidator
 {
-    use AdapterAwareTrait;
-
     /**
      * Error constants
      */
@@ -67,6 +63,13 @@ abstract class AbstractDb extends AbstractValidator implements AdapterAwareInter
      * @var mixed
      */
     protected $exclude = null;
+
+    /**
+     * Database adapter to use. If null isValid() will throw an exception
+     *
+     * @var \Zend\Db\Adapter\Adapter
+     */
+    protected $adapter = null;
 
     /**
      * Provides basic configuration for use with Zend\Validator\Db Validators
@@ -163,7 +166,8 @@ abstract class AbstractDb extends AbstractValidator implements AdapterAwareInter
      */
     public function setAdapter(DbAdapter $adapter)
     {
-        return $this->setDbAdapter($adapter);
+        $this->adapter = $adapter;
+        return $this;
     }
 
     /**

@@ -21,8 +21,8 @@
         <center><a href="http://www.faveohelpdesk.com">
             <img src="{{asset("lb-faveo/media/installer/faveo.png")}}" alt="faveo" width="250px"></a></center>
     <ol class="setup-steps">
-        <li class="@yield('license')">License Agreement</li>
         <li class="@yield('environment')">Environment Test</li>
+        <li class="@yield('license')">License Agreement</li>
         <li class="@yield('database')">Database Setup</li>
         <li class="@yield('locale')">Locale Information</li>
         <li class="@yield('ready')">Ready</li>
@@ -38,7 +38,7 @@
         $('[data-toggle="popover"]').ggpopover();
     </script>
 
-    <script src="{{asset("lb-faveo/js/chosen.jquery.js")}}" type="text/javascript"></script>
+    <script src="{{asset("lb-faveo/js/chosen/chosen.jquery.js")}}" type="text/javascript"></script>
 
     <script src="{{asset("lb-faveo/js/prism.js")}}" type="text/javascript"></script>
 

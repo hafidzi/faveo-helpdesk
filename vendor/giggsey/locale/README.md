@@ -6,13 +6,13 @@ A library providing up to date [CLDR](http://cldr.unicode.org/). Primarily as a 
 
 ## Reasoning
 
-This was created because [libphonenumber-for-php](https://github.com/giggsey/libphonenumber-for-php) required the [intl](http://php.net/intl) extension to use the Geo Coder. The extension is not installed by default, and can be a hurdle for users. It also relies on the [CLDR](http://cldr.unicord.org) data provided by the Operating System, which is quite often out of date.
+This was created because [libphonenumber-for-php](https://github.com/giggsey/libphonenumber-for-php) required the [intl](http://php.net/intl) extension to use the Geo Coder. The extension is not installed by default, and can be a hurdle for users. It also relies on the [CLDR](http://cldr.unicode.org) data provided by the Operating System, which is quite often out of date.
 
 ## Generating data
 
 Data is compiled from the latest [CLDR Data](http://cldr.unicode.org/) as specified in [CLDR-VERSION.txt](CLDR-VERSION.txt).
 
-A [Phing](https://www.phing.info/) task is used to compile the data from [JSON](https://github.com/unicode-cldr/cldr-localenames-full) into native PHP arrays.
+A [Phing](https://www.phing.info/) task is used to compile the data from [JSON](https://github.com/unicode-org/cldr-json) into native PHP arrays.
 
 It is not normally needed to compile the data, as this repository will always have the up to date CLDR data.
 To manually compile the data, ensure you have all the dependencies installed, then run:

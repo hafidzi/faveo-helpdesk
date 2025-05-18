@@ -11,7 +11,6 @@ namespace Zend\Validator;
 
 use Traversable;
 use Zend\Stdlib\ArrayUtils;
-use Zend\ServiceManager\ServiceManager;
 
 class Explode extends AbstractValidator implements ValidatorPluginManagerAwareInterface
 {
@@ -86,7 +85,7 @@ class Explode extends AbstractValidator implements ValidatorPluginManagerAwareIn
     public function getValidatorPluginManager()
     {
         if (!$this->pluginManager) {
-            $this->setValidatorPluginManager(new ValidatorPluginManager(new ServiceManager));
+            $this->setValidatorPluginManager(new ValidatorPluginManager());
         }
 
         return $this->pluginManager;

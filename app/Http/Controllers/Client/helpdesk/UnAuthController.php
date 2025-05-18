@@ -18,8 +18,9 @@ use App\User;
 use Hash;
 // classes
 use Illuminate\Http\Request;
-use Input;
+use Illuminate\Support\Facades\Auth;
 use Lang;
+use Session;
 
 /**
  * GuestController.
@@ -53,8 +54,8 @@ class UnAuthController extends Controller
     {
         try {
             $validator = \Validator::make($request->all(), [
-                        'email_address' => 'required|email',
-                        'ticket_number' => 'required',
+                'email_address' => 'required|email',
+                'ticket_number' => 'required',
             ]);
             if ($validator->fails()) {
                 return redirect()->back()
@@ -95,9 +96,13 @@ class UnAuthController extends Controller
                     $ticket_token->token = $hashed_token;
                     $ticket_token->save();
                 }
+
                 try {
                     $this->PhpMailController->sendmail(
-                            $from = $this->PhpMailController->mailfrom('1', '0'), $to = ['name' => $username, 'email' => $user_details->email], $message = ['subject' => 'Ticket link Request ['.$ticket_number.']', 'scenario' => 'check-ticket'], $template_variables = ['user' => $username, 'ticket_link_with_number' => url('show-ticket/'.$ticket->id.'/'.$token)]
+                        $from = $this->PhpMailController->mailfrom('1', '0'),
+                        $to = ['name' => $username, 'email' => $user_details->email],
+                        $message = ['subject' => 'Ticket link Request ['.$ticket_number.']', 'scenario' => 'check-ticket'],
+                        $template_variables = ['user' => $username, 'ticket_link_with_number' => url('show-ticket/'.$ticket->id.'/'.$token)]
                     );
                 } catch (\Exception $e) {
                 }
@@ -168,7 +173,7 @@ class UnAuthController extends Controller
      */
     public function rating($id, Request $request, \App\Model\helpdesk\Ratings\RatingRef $rating_ref)
     {
-        foreach ($request->all() as $key => $value) {
+        foreach ($request->except(['_token']) as $key => $value) {
             if (strpos($key, '_') !== false) {
                 $ratName = str_replace('_', ' ', $key);
             } else {
@@ -271,6 +276,7 @@ class UnAuthController extends Controller
         } else {
             $from_email = $sending_emails->id;
         }
+
         try {
             $this->PhpMailController->sendmail($from = $this->PhpMailController->mailfrom('0', $tickets->dept_id), $to = ['name' => $user_name, 'email' => $email], $message = ['subject' => $ticket_subject.'[#'.$ticket_number.']', 'scenario' => 'close-ticket'], $template_variables = ['ticket_number' => $ticket_number]);
         } catch (\Exception $e) {
@@ -321,18 +327,18 @@ class UnAuthController extends Controller
     /**
      *@category function to change system's language
      *
-     *@param string $lang //desired language's iso code
+     * @param string $lang //desired language's iso code
      *
-     *@return response
+     * @return response
      */
     public static function changeLanguage($lang)
     {
-        //if(Cache::has('language'))
-        //{
-        //  return Cache::get('language');
-        //} else return 'false';
-        // Cache::put('language',$)
-        $path = base_path('resources/lang');  // Path to check available language packages
+//        if(Cache::has('language'))
+//         {
+//           return Cache::get('language');
+//         } else return 'false';
+//          Cache::put('language',$);
+        $path = base_path('lang');  // Path to check available language packages
         if (array_key_exists($lang, \Config::get('languages')) && in_array($lang, scandir($path))) {
             // dd(array_key_exists($lang, Config::get('languages')));
             // app()->setLocale($lang);
@@ -345,73 +351,193 @@ class UnAuthController extends Controller
         }
 
         return true;
+
+        /*  $path = base_path('lang');  // Path to check available language packages
+          if (array_key_exists($lang, \Config::get('languages')) && in_array($lang, scandir($path))) {
+              if (Auth::check()) {
+                  $id = Auth::user()->id;
+                  $user = User::find($id);
+                  $user->user_language = $lang;
+                  $user->save();
+              } else {
+                  Session::put('language', $lang);
+              }
+          }
+
+          return redirect()->back();*/
     }
 
     // Follow up tickets
-       public function followup()
-       {
-           $followup = Followup::whereId('1')->first();
-           $condition = $followup->condition;
-         // dd($condition);
+    public function followup()
+    {
+        $followup = Followup::whereId('1')->first();
+        $condition = $followup->condition;
+        // dd($condition);
 
         switch ($condition) {
             case 'everyMinute':
-              $followup_set = ' + 1 minute';
+                $followup_set = ' + 1 minute';
                 break;
             case 'everyFiveMinutes':
-               $followup_set = ' + 5 minute';
+                $followup_set = ' + 5 minute';
                 break;
             case 'everyTenMinutes':
-               $followup_set = ' + 10 minute';
+                $followup_set = ' + 10 minute';
                 break;
             case 'everyThirtyMinutes':
-               $followup_set = ' + 30 minute';
+                $followup_set = ' + 30 minute';
                 break;
             case 'hourly':
-               $followup_set = ' + 1 hours';
+                $followup_set = ' + 1 hours';
                 break;
             case 'daily':
-               $followup_set = ' + 1 day';
+                $followup_set = ' + 1 day';
                 break;
             case 'weekly':
-               $followup_set = ' + 7 day';
+                $followup_set = ' + 7 day';
                 break;
             case 'monthly':
-               $followup_set = ' + 30 day';
+                $followup_set = ' + 30 day';
                 break;
             case 'yearly':
-               $followup_set = ' + 365 day';
+                $followup_set = ' + 365 day';
                 break;
         }
 
-           if ($followup->status = 1) {
-               $tickets = Tickets::where('id', '>=', 1)->where('status', '!=', 5)->get();
-        // dd( $tickets);
-         // $tickets=Tickets::where('id', '>=', 1)->where('status', '!=', 5)->pluck('id');
-        // dd( $tickets);
-         // $id=1;
-        foreach ($tickets as $ticket) {
+        if ($followup->status = 1) {
+            $tickets = Tickets::where('id', '>=', 1)->where('status', '!=', 5)->get();
+            // dd( $tickets);
+            // $tickets=Tickets::where('id', '>=', 1)->where('status', '!=', 5)->pluck('id');
+            // dd( $tickets);
             // $id=1;
-            // $id++;
-        // $ticket=Tickets::where('status', '!=', 5)->get();
+            foreach ($tickets as $ticket) {
+                // $id=1;
+                // $id++;
+                // $ticket=Tickets::where('status', '!=', 5)->get();
 
-        // dd($ticket);
-            // if($ticket != null){
+                // dd($ticket);
+                // if($ticket != null){
                 // dd('here');
-            $ck = date('Y-m-d H:i:s', strtotime($ticket->updated_at.$followup_set));
-            // dd($ck);
-            $current_time = date('Y-m-d H:i:s');
-            if ($current_time > $ck) {
-                $ticket->follow_up = 1;
-                $ticket->save();
-             //  Tickets::where('id', '=',$id)
-             // ->update(['follow_up' => 1]);
+                $ck = date('Y-m-d H:i:s', strtotime($ticket->updated_at.$followup_set));
+                // dd($ck);
+                $current_time = date('Y-m-d H:i:s');
+                if ($current_time > $ck) {
+                    $ticket->follow_up = 1;
+                    $ticket->save();
+                    //  Tickets::where('id', '=',$id)
+                    // ->update(['follow_up' => 1]);
 
-            // }
+                    // }
+                }
+                //       if($id=2)
+                // {dd($ticket);}
             }
-        //       if($id=2)
-        // {dd($ticket);}
         }
-           }
-       }
+    }
+
+    /**
+     * Function to chnage user language preference.
+     *
+     * @param string $lang //desired language's iso code
+     *
+     * @category function to change system's language
+     *
+     * @return response
+     */
+    public static function changeUserLanguage($lang)
+    {
+        $path = base_path('lang');  // Path to check available language packages
+        if (array_key_exists($lang, \Config::get('languages')) && in_array($lang, scandir($path))) {
+            if (Auth::check()) {
+                $id = Auth::user()->id;
+                $user = User::find($id);
+                $user->user_language = $lang;
+                $user->save();
+            } else {
+                Session::put('language', $lang);
+            }
+        }
+
+        return redirect()->back();
+    }
+
+    public function close($id, Tickets $ticket)
+    {
+        $tickets = Tickets::where('id', '=', $id)->first();
+        $tickets->status = 3;
+        $ticket_status = Ticket_Status::where('id', '=', 3)->first();
+        if ($ticket_status->state == 'closed') {
+            $tickets->closed = $ticket_status->id;
+            $tickets->closed_at = date('Y-m-d H:i:s');
+        }
+        $tickets->save();
+        $ticket_thread = Ticket_Thread::where('ticket_id', '=', $ticket_status->id)->first();
+        $ticket_subject = $ticket_thread->title;
+
+        $user = User::where('id', '=', $tickets->user_id)->first();
+
+        $thread = new Ticket_Thread();
+        $thread->ticket_id = $tickets->id;
+        $thread->user_id = $tickets->user_id;
+        $thread->is_internal = 1;
+        $thread->body = $ticket_status->message.' '.$user->user_name;
+        $thread->save();
+
+        $email = $user->email;
+        $user_name = $user->user_name;
+        $ticket_number = $tickets->ticket_number;
+
+        $sending_emails = Emails::where('department', '=', $ticket_status->dept_id)->first();
+        if ($sending_emails == null) {
+            $from_email = $this->system_mail();
+        } else {
+            $from_email = $sending_emails->id;
+        }
+
+        try {
+            $this->PhpMailController->sendmail($from = $this->PhpMailController->mailfrom('0', $tickets->dept_id), $to = ['name' => $user_name, 'email' => $email], $message = ['subject' => $ticket_subject.'[#'.$ticket_number.']', 'scenario' => 'close-ticket'], $template_variables = ['ticket_number' => $ticket_number]);
+        } catch (\Exception $e) {
+            return 0;
+        }
+
+        return Lang::get('lang.your_ticket_has_been').' '.$ticket_status->state;
+    }
+
+    public function open($id, Tickets $ticket)
+    {
+        $ticket_status = $ticket->where('id', '=', $id)->first();
+        $ticket_status->status = 1;
+        $ticket_status->reopened_at = date('Y-m-d H:i:s');
+        $ticket_status->save();
+        $ticket_status_message = Ticket_Status::where('id', '=', $ticket_status->status)->first();
+        $thread = new Ticket_Thread();
+        $user = User::where('id', '=', $ticket->user_id)->first();
+        $thread->ticket_id = $ticket_status->id;
+        $thread->user_id = $ticket->user_id;
+        $thread->is_internal = 1;
+        $thread->body = $ticket_status->message.' '.$user->user_name;
+        $thread->save();
+
+        return 'your ticket'.$ticket_status->ticket_number.' has been opened';
+    }
+
+    public function resolve($id, Tickets $ticket)
+    {
+        $ticket_status = $ticket->where('id', '=', $id)->first();
+
+        $ticket_status->status = 2;
+        $ticket_status->closed = 1;
+        $ticket_status->closed_at = date('Y-m-d H:i:s');
+        $ticket_status->save();
+        $ticket_status_message = Ticket_Status::where('id', '=', $ticket_status->status)->first();
+        $thread = new Ticket_Thread();
+        $user = User::where('id', '=', $ticket->user_id)->first();
+        $thread->ticket_id = $ticket_status->id;
+        $thread->user_id = $ticket->user_id;
+        $thread->is_internal = 1;
+
+        $thread->save();
+
+        return Lang::get('lang.your_ticket_has_been').' '.$ticket_status->state;
+    }
 }

@@ -25,6 +25,7 @@ class ClassNode
     private $interfaces  = array();
     private $properties  = array();
     private $unextendableMethods = array();
+    private $readOnly = false;
 
     /**
      * @var MethodNode[]
@@ -100,7 +101,7 @@ class ClassNode
         return $this->methods;
     }
 
-    public function addMethod(MethodNode $method)
+    public function addMethod(MethodNode $method, $force = false)
     {
         if (!$this->isExtendable($method->getName())){
             $message = sprintf(
@@ -108,7 +109,10 @@ class ClassNode
             );
             throw new MethodNotExtendableException($message, $this->getParentClass(), $method->getName());
         }
-        $this->methods[$method->getName()] = $method;
+
+        if ($force || !isset($this->methods[$method->getName()])) {
+            $this->methods[$method->getName()] = $method;
+        }
     }
 
     public function removeMethod($name)
@@ -162,5 +166,21 @@ class ClassNode
     public function isExtendable($method)
     {
         return !in_array($method, $this->unextendableMethods);
+    }
+
+    /**
+     * @return bool
+     */
+    public function isReadOnly()
+    {
+        return $this->readOnly;
+    }
+
+    /**
+     * @param bool $readOnly
+     */
+    public function setReadOnly($readOnly)
+    {
+        $this->readOnly = $readOnly;
     }
 }

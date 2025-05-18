@@ -1,61 +1,153 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Documentation for this config :
+|--------------------------------------------------------------------------
+| online  => http://unisharp.github.io/laravel-filemanager/config
+| offline => vendor/unisharp/laravel-filemanager/docs/config.md
+ */
+
 return [
-    // If true, the uploaded file will be renamed to uniqid() + file extension.
-    'rename_file'           => true,
+    /*
+    |--------------------------------------------------------------------------
+    | Routing
+    |--------------------------------------------------------------------------
+     */
 
-    // If rename_file set to false and this set to true, then non-alphanumeric characters in filename will be replaced.
-    'alphanumeric_filename' => true,
-    // If true, non-alphanumeric folder name will not be allowed.
-    'alphanumeric_directory' => false,
+    'use_package_routes'       => true,
 
-    'use_package_routes'    => true,
+    /*
+    |--------------------------------------------------------------------------
+    | Shared folder / Private folder
+    |--------------------------------------------------------------------------
+    |
+    | If both options are set to false, then shared folder will be activated.
+    |
+     */
 
-    // For laravel 5.2, please set to ['web', 'auth']
-    'middlewares'           => ['auth'],
+    'allow_private_folder'     => true,
 
-    // Add prefix for routes
-    'prefix'           => 'laravel-filemanager',
+    // Flexible way to customize client folders accessibility
+    // If you want to customize client folders, publish tag="lfm_handler"
+    // Then you can rewrite userField function in App\Handler\ConfigHandler class
+    // And set 'user_field' to App\Handler\ConfigHandler::class
+    // Ex: The private folder of user will be named as the user id.
+    'private_folder_name'      => UniSharp\LaravelFilemanager\Handlers\ConfigHandler::class,
 
-    // Allow multi_user mode or not.
-    // If true, laravel-filemanager create private folders for each signed-in user.
-    'allow_multi_user'      => true,
+    'allow_shared_folder'      => true,
 
-    // The database field to identify a user.
-    // When set to 'id', the private folder will be named as the user id.
-    // NOTE: make sure to use an unique field.
-    'user_field'            => 'id',
+    'shared_folder_name'       => 'shares',
 
-    'shared_folder_name'    => 'shares',
-    'thumb_folder_name'     => 'thumbs',
+    /*
+    |--------------------------------------------------------------------------
+    | Folder Names
+    |--------------------------------------------------------------------------
+     */
 
-    'images_dir'            => 'public/photos/',
-    'images_url'            => '/photos/',
+    'folder_categories'        => [
+        'file'  => [
+            'folder_name'  => 'files',
+            'startup_view' => 'list',
+            'max_size'     => 50000, // size in KB
+            'thumb' => true,
+            'thumb_width' => 80,
+            'thumb_height' => 80,
+            'valid_mime'   => [
+                'image/jpeg',
+                'image/pjpeg',
+                'image/png',
+                'image/gif',
+                'application/pdf',
+                'text/plain',
+            ],
+        ],
+        'image' => [
+            'folder_name'  => 'photos',
+            'startup_view' => 'grid',
+            'max_size'     => 50000, // size in KB
+            'thumb' => true,
+            'thumb_width' => 80,
+            'thumb_height' => 80,
+            'valid_mime'   => [
+                'image/jpeg',
+                'image/pjpeg',
+                'image/png',
+                'image/gif',
+            ],
+        ],
+    ],
 
-    'files_dir'             => 'public/files/',
-    'files_url'             => '/files/',
+    /*
+    |--------------------------------------------------------------------------
+    | Pagination
+    |--------------------------------------------------------------------------
+     */
 
-    // available since v1.3.0
-    'valid_image_mimetypes' => [
+    'paginator' => [
+        'perPage' => 30,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Upload / Validation
+    |--------------------------------------------------------------------------
+     */
+
+    'disk'                     => 'public',
+
+    'rename_file'              => false,
+
+    'rename_duplicates'        => false,
+
+    'alphanumeric_filename'    => false,
+
+    'alphanumeric_directory'   => false,
+
+    'should_validate_size'     => false,
+
+    'should_validate_mime'     => true,
+
+    // behavior on files with identical name
+    // setting it to true cause old file replace with new one
+    // setting it to false show `error-file-exist` error and stop upload
+    'over_write_on_duplicate'  => false,
+
+    // mimetypes of executables to prevent from uploading
+    'disallowed_mimetypes' => ['text/x-php', 'text/html', 'text/plain'],
+
+    // Item Columns
+    'item_columns' => ['name', 'url', 'time', 'icon', 'is_file', 'is_image', 'thumb_url'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Thumbnail
+    |--------------------------------------------------------------------------
+     */
+
+    // If true, image thumbnails would be created during upload
+    'should_create_thumbnails' => true,
+
+    'thumb_folder_name'        => 'thumbs',
+
+    // Create thumbnails automatically only for listed types.
+    'raster_mimetypes'         => [
         'image/jpeg',
         'image/pjpeg',
         'image/png',
-        'image/gif'
     ],
 
-    // available since v1.3.0
-    // only when '/laravel-filemanager?type=Files'
-    'valid_file_mimetypes' => [
-        'image/jpeg',
-        'image/pjpeg',
-        'image/png',
-        'image/gif',
-        'application/pdf',
-        'text/plain',
-    ],
+    'thumb_img_width'          => 200, // px
 
-    // file extensions array, only for showing file information, it won't affect the upload process.
-    'file_type_array'         => [
+    'thumb_img_height'         => 200, // px
+
+    /*
+    |--------------------------------------------------------------------------
+    | File Extension Information
+    |--------------------------------------------------------------------------
+     */
+
+    'file_type_array'          => [
         'pdf'  => 'Adobe Acrobat',
         'doc'  => 'Microsoft Word',
         'docx' => 'Microsoft Word',
@@ -70,19 +162,18 @@ return [
         'pptx' => 'Microsoft PowerPoint',
     ],
 
-    // file extensions array, only for showing icons, it won't affect the upload process.
-    'file_icon_array'         => [
-        'pdf'  => 'fa-file-pdf-o',
-        'doc'  => 'fa-file-word-o',
-        'docx' => 'fa-file-word-o',
-        'xls'  => 'fa-file-excel-o',
-        'xlsx' => 'fa-file-excel-o',
-        'zip'  => 'fa-file-archive-o',
-        'gif'  => 'fa-file-image-o',
-        'jpg'  => 'fa-file-image-o',
-        'jpeg' => 'fa-file-image-o',
-        'png'  => 'fa-file-image-o',
-        'ppt'  => 'fa-file-powerpoint-o',
-        'pptx' => 'fa-file-powerpoint-o',
+    /*
+    |--------------------------------------------------------------------------
+    | php.ini override
+    |--------------------------------------------------------------------------
+    |
+    | These values override your php.ini settings before uploading files
+    | Set these to false to ingnore and apply your php.ini settings
+    |
+    | Please note that the 'upload_max_filesize' & 'post_max_size'
+    | directives are not supported.
+     */
+    'php_ini_overrides'        => [
+        'memory_limit' => '256M',
     ],
 ];
